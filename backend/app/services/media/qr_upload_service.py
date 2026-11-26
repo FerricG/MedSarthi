@@ -439,17 +439,19 @@ class QrRemoteUploadManager:
             try:
                 from pyngrok import conf, ngrok
 
+                pyngrok_cfg = conf.get_default()
+                repo_ngrok = Path(__file__).resolve().parents[4] / "ngrok.exe"
+                if repo_ngrok.exists():
+                    pyngrok_cfg.ngrok_path = str(repo_ngrok)
                 if token:
+                    pyngrok_cfg.auth_token = token
                     try:
-                        ngrok.set_auth_token(token)
+                        ngrok.set_auth_token(token, pyngrok_config=pyngrok_cfg)
                     except Exception as tok_exc:
                         if "already set" not in str(tok_exc).lower():
                             raise
-                pyngrok_cfg = conf.get_default()
-                if token:
-                    pyngrok_cfg.auth_token = token
 
-                tunnel = ngrok.connect(addr=target_port, proto="http")
+                tunnel = ngrok.connect(addr=target_port, proto="http", pyngrok_config=pyngrok_cfg)
                 self._tunnel = tunnel
                 self._public_url = tunnel.public_url
                 if self._public_url and self._public_url.startswith("http://"):

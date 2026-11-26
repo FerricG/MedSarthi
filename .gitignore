@@ -34,7 +34,8 @@ backend/storage/
 backend/models/
 storage/
 
-# OS / Editor
+# OS / Editor / Local Tools
 .DS_Store
 Thumbs.db
 *.log
+ngrok.exe
