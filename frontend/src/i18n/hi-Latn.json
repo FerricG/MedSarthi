@@ -1,11 +1,35 @@
 {
   "appName": "MedSarthi",
   "tagline": "Aapke doctor ki salah ki aasaan, shaant aur personalized samajh",
+  "nav": {
+    "home": "Home",
+    "patientHome": "Patient Home",
+    "doctorWorkspace": "Doctor Workspace",
+    "instructions": "Instructions",
+    "reports": "Reports",
+    "medicines": "Medicines",
+    "talk": "Baat Karein",
+    "listen": "Sunein",
+    "history": "History",
+    "settings": "Settings",
+    "onboarding": "Profile Setup",
+    "backToHome": "Patient Home par wapas jayein",
+    "signIn": "Sign In",
+    "register": "Account Banayein"
+  },
   "safety": {
     "prototypeBannerTitle": "Educational Prototype — Sirf Synthetic Data",
     "prototypeBannerBody": "MedSarthi sirf synthetic data par bana ek educational prototype hai. Yeh clinically validated NAHI hai, diagnosis ya prescription nahi deta, aur doctor ki jagah nahi le sakta.",
     "prototypeFooter": "Educational Prototype • Sirf Synthetic Data • Real Medical Care ke liye Validated Nahi • Har medical faisle ke liye apne doctor se zaroor poochein.",
-    "emergencyNote": "Agar tez seene mein dard, saans lene mein dikkat, achanak kamzori ya zyada bleeding ho, to turant 112 / 108 par call karein ya emergency hospital jayein."
+    "emergencyNote": "Agar tez seene mein dard, saans lene mein dikkat, achanak kamzori ya zyada bleeding ho, to turant 112 / 108 par call karein ya emergency hospital jayein.",
+    "emergencyBannerTitle": "Turant Medical Madad ki Zaroorat Hai",
+    "emergencyCallAction": "Emergency 112 / 108 par Call Karein",
+    "emergencySeekCare": "App ke jawab ka intezaar na karein. Turant emergency services (112 ya 108) par call karein ya nazdeeki hospital jayein.",
+    "integrityPassed": "Safety Check Passed — Zaroori dawaiyan, dose, timing aur warnings doctor ke note se match karte hain.",
+    "integrityWarning": "Safety Notice — Kripya highlight ki gayi jankari apne doctor ya pharmacist se dobara confirm kar lein.",
+    "integrityBlocked": "Safety Hold — Yeh explanation doctor ke original note se verify nahi ho paayi aur review ke liye roki gayi hai.",
+    "integrityDisclaimer": "Yeh automated check doctor ke note se zaroori baaton ka milan karta hai; yeh doctor ki salah ki jagah nahi leta.",
+    "medicineProhibition": "Apne doctor ya pharmacist se pooche bina koi bhi dawa shuru, band ya dose change na karein."
   },
   "languages": {
     "label": "Bhasha",
@@ -32,31 +56,128 @@
     }
   },
   "provenance": {
-    "doctorProvided": "Doctor ki Di Hui Jankari",
-    "aiSimplified": "AI dwara Aasaan Samajh",
+    "doctorProvided": "Doctor ne Jo Bataya",
+    "aiSimplified": "Aasaan Bhasha Mein",
     "generalEducation": "General Medical Jankari",
-    "uncertainOrMissing": "Uncertain ya Adhoori Jankari"
+    "uncertainOrMissing": "Doctor se Confirm Karein / Adhoori Jankari",
+    "infoSource": "Jankari ka source",
+    "lockedSource": "Doctor ka Original Note (Locked)",
+    "askDoctorPrompt": "Apne doctor se poochne ke liye sawaal"
   },
   "patientHome": {
     "greeting": "Aaj MedSarthi aapki kya madad kar sakta hai?",
+    "welcomePrefix": "Namaste,",
+    "subtitle": "Neeche ek option chunein. Upar se aap kabhi bhi bhasha, font size ya audio speed badal sakte hain.",
     "actions": {
       "instructions": "Mere doctor ki salah samjhein",
+      "instructionsHint": "Visit ki salah ko aasaan shabdon mein padhein ya sunein",
       "report": "Meri report samjhein",
+      "reportHint": "Lab report ya parcha upload karein aur unclear text check karein",
       "medicine": "Meri dawa samjhein",
+      "medicineHint": "Dekhein har dawa kab aur kaise safe tareeke se leni hai",
       "talk": "MedSarthi se baat karein",
+      "talkHint": "Bolkar ya likhkar Hinglish, Hindi ya English mein poochein",
       "listen": "Meri explanation sunein",
-      "history": "Mere pichhle consultations"
+      "listenHint": "Slow/fast speed aur line highlighting ke saath sunein",
+      "history": "Mere pichhle consultations",
+      "historyHint": "Purani visits dekhein aur medical shabdon ka matlab samjhein"
     }
+  },
+  "onboarding": {
+    "title": "Chaliye MedSarthi ko aapke hisaab se set karein",
+    "stepOf": "Step {step} / 7",
+    "hearQuestion": "Yeh sawaal sunein",
+    "back": "Peeche",
+    "next": "Aage Badhein",
+    "skip": "Abhi chhodein",
+    "finish": "Poora Karein aur Home par Jayein",
+    "saving": "Aapki settings save ho rahi hain...",
+    "step1Title": "Hum aapko kis naam se bulayein?",
+    "step1Hint": "Apna naam ya nickname likhein. Hum iska istemal sirf namaste karne ke liye karenge.",
+    "step1Placeholder": "Apna naam likhein (jaise Ramesh)",
+    "step2Title": "Aapki umar kitni hai?",
+    "step2Hint": "Isse humein aapke liye aaraamdayak starting text size aur audio speed chunne mein madad milti hai. Aap baad mein badal sakte hain.",
+    "step2Placeholder": "Umar likhein (jaise 64)",
+    "step2QuickPick": "Ya age group chunein:",
+    "step3Title": "Aapka gender kya hai? (Optional)",
+    "step3Hint": "Aap ise skip kar sakte hain. Isse humari bhasha ya samjhane ke tareeke par koi farq nahi padta.",
+    "genderOptions": {
+      "male": "Male",
+      "female": "Female",
+      "other": "Other",
+      "prefer_not_to_say": "Batana nahi chahte"
+    },
+    "step4Title": "Medical jankari padhne aur samajhne mein aapko kaisa comfortable lagta hai?",
+    "step4Hint": "Jo aaj sabse sahi lage woh chunein. Detail level aap kabhi bhi badal sakte hain.",
+    "comfortDescriptions": {
+      "very_simple": "Chhote rozmarra ke shabd aur aasaan steps",
+      "simple": "Saaf aasaan bhasha jisme medical shabdon ka matlab bhi ho",
+      "comfortable": "Medical shabdon ke saath poori detail mein samajh",
+      "adaptive": "Har jawab ke upar 'Simple' aur 'More Detail' ke buttons dikhayein"
+    },
+    "step5Title": "Aapko kaun si bhasha sabse aasaan lagti hai?",
+    "step5Hint": "Search karein ya neeche chunein. Aap kabhi bhi beech mein bhasha badal sakte hain.",
+    "step5SearchPlaceholder": "Bhasha khojein (English, Hindi, Hinglish...)",
+    "step5HinglishNote": "English letters mein likhi Hindi (jaise 'Khaane ke baad ek goli lein')",
+    "step6Title": "Aap MedSarthi se kis tarah samajhna chahenge?",
+    "step6Hint": "Woh tareeka chunein jo aapke phone ya computer par sabse aasaan ho.",
+    "formatOptions": {
+      "text": "Text (Likha hua)",
+      "textDesc": "Screen par saaf likhe hue points",
+      "audio": "Audio (Sunkar)",
+      "audioDesc": "Play, Pause aur Speed ke saath aaram se sunein",
+      "text_audio": "Text + Audio",
+      "text_audioDesc": "Bolte samay har line highlight ho aur saath mein padhein",
+      "visual": "Visual / Chitra ke saath",
+      "visualDesc": "Aasaan verified diagrams aur chhote points"
+    },
+    "step7Title": "Apni padhne aur sunne ki suvidha check karein",
+    "step7Hint": "Aapki umar ke hisaab se humne aaraamdayak starting settings chuni hain. Aap kabhi bhi badal sakte hain.",
+    "previewTitle": "Live Preview Card",
+    "previewSampleTitle": "Sample Doctor Instruction",
+    "previewSampleText": "Amlodipine 5 mg roz subah nashte ke baad lein. Doctor se pooche bina achanak band na karein.",
+    "testVoice": "Awaaz Test Karein",
+    "slowerAudio": "Dheema",
+    "fasterAudio": "Tez",
+    "recommendedBadge": "Recommended starting setting"
+  },
+  "audio": {
+    "listen": "Sunein",
+    "play": "Play",
+    "pause": "Pause",
+    "resume": "Resume",
+    "stop": "Stop",
+    "replay": "Dobara Sunein",
+    "speed": "Speed",
+    "generating": "Awaaz tayyar ho rahi hai...",
+    "browserFallbackNotice": "Aapke device ki awaaz suvidha use ho rahi hai.",
+    "sentenceProgress": "Line {current} / {total}"
+  },
+  "voice": {
+    "tapToSpeak": "Bolne ke liye Dabaye",
+    "listening": "Sun rahe hain... Rokne ke liye Dabaye",
+    "processing": "Aapki awaaz samajh rahe hain...",
+    "confirmTitle": "Kya aapne yahi poocha?",
+    "confirmSubtitle": "Awaaz thodi unclear thi. Bhejne se pehle check ya edit karein.",
+    "yesAskThis": "Haan, yahi poochein",
+    "editText": "Text edit karein",
+    "speakAgain": "Dobara bolein",
+    "cancel": "Cancel",
+    "consentNote": "Aapki awaaz sirf sawaal likhne ke liye use hoti hai aur raw audio save nahi hota."
   },
   "auth": {
     "signInTitle": "MedSarthi mein Sign In karein",
-    "demoSectionTitle": "1-Click Synthetic Demo Mode",
+    "registerTitle": "MedSarthi Account Banayein",
+    "demoSectionTitle": "1-Click Judge Demo Mode",
     "demoPatientBtn": "Demo Patient (Ramesh Sharma, Age 64)",
     "demoDoctorBtn": "Demo Doctor (Dr. Priya Mehta)",
+    "guidedDemoBtn": "7-Step Guided Demo Walkthrough Shuru Karein",
     "emailOrPhone": "Email ya Phone",
     "password": "Password",
     "signInBtn": "Sign In karein",
     "signingIn": "Sign in ho raha hai...",
+    "registerBtn": "Account Banayein",
+    "registering": "Account ban raha hai...",
     "signOut": "Sign Out",
     "signedInAs": "Signed in as",
     "rolePatient": "Patient",
@@ -64,6 +185,8 @@
     "backendStatus": "Backend Status",
     "statusChecking": "Check ho raha hai...",
     "statusOnline": "Connected",
-    "statusOffline": "Backend offline (port 8000 par uvicorn start karein)"
+    "statusOffline": "Backend offline (port 8000 par uvicorn start karein)",
+    "noAccount": "MedSarthi par naye hain?",
+    "haveAccount": "Pehle se account hai?"
   }
 }

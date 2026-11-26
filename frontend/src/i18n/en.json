@@ -1,11 +1,35 @@
 {
   "appName": "MedSarthi",
   "tagline": "Clear, calm, personalized explanations of your doctor's advice",
+  "nav": {
+    "home": "Home",
+    "patientHome": "Patient Home",
+    "doctorWorkspace": "Doctor Workspace",
+    "instructions": "Instructions",
+    "reports": "Reports",
+    "medicines": "Medicines",
+    "talk": "Talk",
+    "listen": "Listen",
+    "history": "History",
+    "settings": "Settings",
+    "onboarding": "Setup Profile",
+    "backToHome": "Back to Patient Home",
+    "signIn": "Sign In",
+    "register": "Create Account"
+  },
   "safety": {
     "prototypeBannerTitle": "Educational Prototype — Synthetic Data Only",
     "prototypeBannerBody": "MedSarthi is an AI-thon educational prototype using synthetic cases only. It is NOT clinically validated, does not diagnose or prescribe, and must not replace a qualified doctor.",
     "prototypeFooter": "Educational Prototype • Synthetic Data Only • Not Clinically Validated for Real Care • Always confirm medical decisions with your doctor.",
-    "emergencyNote": "If you have severe chest pain, trouble breathing, sudden weakness, or heavy bleeding, call 112 / 108 or go to the nearest emergency hospital immediately."
+    "emergencyNote": "If you have severe chest pain, trouble breathing, sudden weakness, or heavy bleeding, call 112 / 108 or go to the nearest emergency hospital immediately.",
+    "emergencyBannerTitle": "Urgent Medical Attention Needed",
+    "emergencyCallAction": "Call Emergency 112 / 108",
+    "emergencySeekCare": "Do not wait for an app reply. Please call emergency services (112 or 108) or go to the nearest emergency hospital right away.",
+    "integrityPassed": "Safety Check Passed — Key medicines, doses, timing, and warnings match your doctor's note.",
+    "integrityWarning": "Safety Check Notice — Please double-check the highlighted details with your doctor or pharmacist.",
+    "integrityBlocked": "Safety Hold — This explanation could not be verified against the doctor's original note and is held for review.",
+    "integrityDisclaimer": "Automated consistency check comparing critical fields against the source note; this does not prove clinical correctness or replace professional review.",
+    "medicineProhibition": "Never start, stop, or change any medicine dose without asking your doctor or pharmacist."
   },
   "languages": {
     "label": "Language",
@@ -32,31 +56,128 @@
     }
   },
   "provenance": {
-    "doctorProvided": "Doctor-Provided Information",
-    "aiSimplified": "AI Simplified Explanation",
-    "generalEducation": "General Medical Education",
-    "uncertainOrMissing": "Uncertain or Missing Details"
+    "doctorProvided": "What Your Doctor Provided",
+    "aiSimplified": "In Simple Words",
+    "generalEducation": "General Medical Knowledge",
+    "uncertainOrMissing": "Needs Clarification / Unknown",
+    "infoSource": "Information source",
+    "lockedSource": "Doctor's Exact Note (Unchanged)",
+    "askDoctorPrompt": "Question to ask your doctor"
   },
   "patientHome": {
     "greeting": "How can MedSarthi help you today?",
+    "welcomePrefix": "Welcome,",
+    "subtitle": "Pick one option below. You can change language, text size, or audio speed anytime at the top.",
     "actions": {
       "instructions": "Understand my doctor's instructions",
+      "instructionsHint": "Read or listen to your visit summary in simple words",
       "report": "Understand my report",
+      "reportHint": "Upload a lab report or prescription and verify unclear text",
       "medicine": "Understand my medicine",
+      "medicineHint": "See how and when to take each medicine safely",
       "talk": "Talk to MedSarthi",
+      "talkHint": "Ask questions by voice or text in English, Hindi, or Hinglish",
       "listen": "Listen to my explanation",
-      "history": "My previous consultations"
+      "listenHint": "Play audio with slow/fast speed and live word highlighting",
+      "history": "My previous consultations",
+      "historyHint": "Review past visits and look up medical terms"
     }
+  },
+  "onboarding": {
+    "title": "Let's personalize MedSarthi for you",
+    "stepOf": "Step {step} of 7",
+    "hearQuestion": "Hear this question",
+    "back": "Back",
+    "next": "Continue",
+    "skip": "Skip for now",
+    "finish": "Finish & Go to My Home",
+    "saving": "Saving your choices...",
+    "step1Title": "What should we call you?",
+    "step1Hint": "Enter your first name or the name you prefer. We will only use it gently to greet you.",
+    "step1Placeholder": "Type your name (e.g., Ramesh)",
+    "step2Title": "How old are you?",
+    "step2Hint": "This only helps us pick comfortable starting text size and audio speed. You can change them anytime.",
+    "step2Placeholder": "Age in years (e.g., 64)",
+    "step2QuickPick": "Or choose an age range:",
+    "step3Title": "How do you identify? (Optional)",
+    "step3Hint": "You may skip this. It never changes how simply or respectfully we explain things.",
+    "genderOptions": {
+      "male": "Male",
+      "female": "Female",
+      "other": "Other",
+      "prefer_not_to_say": "Prefer not to say"
+    },
+    "step4Title": "How comfortable are you with reading and understanding medical information?",
+    "step4Hint": "Pick what feels best for you today. You can change detail level anytime.",
+    "comfortDescriptions": {
+      "very_simple": "Short everyday words and easy step-by-step points",
+      "simple": "Clear plain language with everyday meanings for medical words",
+      "comfortable": "Detailed explanations alongside clear medical terms",
+      "adaptive": "Show a clear summary with Simpler / More Detail buttons on every answer"
+    },
+    "step5Title": "Which language feels easiest for you?",
+    "step5Hint": "Search or tap below. You can switch languages anytime without losing your place.",
+    "step5SearchPlaceholder": "Search language (English, Hindi, Hinglish...)",
+    "step5HinglishNote": "Hindi written in English letters (e.g. 'Khaane ke baad ek goli lein')",
+    "step6Title": "How would you like MedSarthi to explain things?",
+    "step6Hint": "Choose the format that works best on your phone or computer.",
+    "formatOptions": {
+      "text": "Text",
+      "textDesc": "Clear written points on screen",
+      "audio": "Audio",
+      "audioDesc": "Listen calmly with Play, Pause, and Speed controls",
+      "text_audio": "Text + Audio",
+      "text_audioDesc": "Read along while each sentence is highlighted and spoken",
+      "visual": "Visual explanation",
+      "visualDesc": "Simple verified pictures paired with short explanations"
+    },
+    "step7Title": "Preview your reading & listening comfort",
+    "step7Hint": "We chose comfortable starting settings based on your age. Adjust them anytime.",
+    "previewTitle": "Live Preview Card",
+    "previewSampleTitle": "Sample Doctor Instruction",
+    "previewSampleText": "Take Amlodipine 5 mg once every morning after breakfast. Do not stop suddenly without asking your doctor.",
+    "testVoice": "Test Voice",
+    "slowerAudio": "Slower",
+    "fasterAudio": "Faster",
+    "recommendedBadge": "Recommended starting setting"
+  },
+  "audio": {
+    "listen": "Listen",
+    "play": "Play",
+    "pause": "Pause",
+    "resume": "Resume",
+    "stop": "Stop",
+    "replay": "Replay",
+    "speed": "Speed",
+    "generating": "Preparing voice...",
+    "browserFallbackNotice": "Using your device's built-in voice playback.",
+    "sentenceProgress": "Reading line {current} of {total}"
+  },
+  "voice": {
+    "tapToSpeak": "Tap to Speak",
+    "listening": "Listening... Tap to Stop",
+    "processing": "Understanding your voice...",
+    "confirmTitle": "Did you mean this?",
+    "confirmSubtitle": "Audio was slightly unclear. Please check or edit before sending.",
+    "yesAskThis": "Yes, ask this",
+    "editText": "Edit text",
+    "speakAgain": "Speak again",
+    "cancel": "Cancel",
+    "consentNote": "Your voice clip is used only to type your question and is not kept as raw audio."
   },
   "auth": {
     "signInTitle": "Sign in to MedSarthi",
-    "demoSectionTitle": "1-Click Synthetic Demo Mode",
+    "registerTitle": "Create a MedSarthi Account",
+    "demoSectionTitle": "1-Click Judge Demo Flow",
     "demoPatientBtn": "Demo Patient (Ramesh Sharma, Age 64)",
     "demoDoctorBtn": "Demo Doctor (Dr. Priya Mehta)",
+    "guidedDemoBtn": "Start Guided 7-Step Demo Walkthrough",
     "emailOrPhone": "Email or Phone",
     "password": "Password",
     "signInBtn": "Sign In",
     "signingIn": "Signing in...",
+    "registerBtn": "Create Account",
+    "registering": "Creating account...",
     "signOut": "Sign Out",
     "signedInAs": "Signed in as",
     "rolePatient": "Patient",
@@ -64,6 +185,8 @@
     "backendStatus": "Backend Health",
     "statusChecking": "Checking...",
     "statusOnline": "Connected",
-    "statusOffline": "Backend offline (start uvicorn on port 8000)"
+    "statusOffline": "Backend offline (start uvicorn on port 8000)",
+    "noAccount": "New to MedSarthi?",
+    "haveAccount": "Already have an account?"
   }
 }

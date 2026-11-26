@@ -9,7 +9,19 @@ from fastapi.responses import JSONResponse
 from app.core.config import get_settings
 from app.core.database import init_db
 from app.core.exceptions import AppError
-from app.routes import auth, health
+from app.routes import (
+    audio,
+    auth,
+    chat,
+    consent,
+    demo,
+    doctor,
+    documents,
+    explain,
+    health,
+    knowledge,
+    patients,
+)
 
 settings = get_settings()
 
@@ -85,6 +97,15 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router, prefix="/api")
     app.include_router(auth.router, prefix="/api")
+    app.include_router(demo.router, prefix="/api")
+    app.include_router(patients.router, prefix="/api")
+    app.include_router(consent.router, prefix="/api")
+    app.include_router(explain.router, prefix="/api")
+    app.include_router(chat.router, prefix="/api")
+    app.include_router(documents.router, prefix="/api")
+    app.include_router(audio.router, prefix="/api")
+    app.include_router(doctor.router, prefix="/api")
+    app.include_router(knowledge.router, prefix="/api")
     return app
 
 
