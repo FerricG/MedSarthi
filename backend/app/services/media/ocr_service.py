@@ -335,26 +335,35 @@ def _extract_structured_medical_fields(
     patient_gender: str | None = None
 
     name_m = re.search(
-        r"(?:Patient\s*Name|Patient|Name)\s*:\s*([A-Za-z][A-Za-z\.\s]{1,50}?)(?=\s*(?:\||Age|Gender|Sex|Date|\(|$|\n))",
+        r"(?:Patient\s*Name|Patient|Name)\s*[:.\-]*\s*(?:\n\s*)?([A-Za-z][A-Za-z\.,\s]{1,55}?)"
+        r"(?=(?:Sex|Age|Gender|Date|UHID|OPD|\||\(|$|\n))",
         full_text,
         re.IGNORECASE,
     )
     if name_m:
-        candidate = name_m.group(1).strip(" .,-|")
+        candidate = re.sub(r"(?:Sex|Age|Gender)+$", "", name_m.group(1), flags=re.IGNORECASE).strip(" .,-|")
         if candidate and not re.search(r"\[UNREADABLE\]", candidate, re.IGNORECASE):
             patient_name = candidate
 
-    age_m = re.search(r"(?:Age)\s*[:\-]?\s*(\d{1,3})\s*(?:yrs?|years?|y)?", full_text, re.IGNORECASE)
+    age_m = re.search(
+        r"(?:Age|SexAge|Age/Sex)\s*[:.\-\s/]*?(?:\n\s*)?(\d{1,3})\s*(?:yrs?|years?|y|m|f)?",
+        full_text,
+        re.IGNORECASE,
+    )
     if not age_m:
-        age_m = re.search(r"\((\d{1,3})\s*[MF]\)", full_text, re.IGNORECASE)
+        age_m = re.search(r"(?:\(|^|\s)(\d{1,3})\s*/?\s*[MF](?:\)|\b)", full_text, re.IGNORECASE)
     if age_m:
         age_val = int(age_m.group(1))
         if 0 < age_val <= 120:
             patient_age = age_val
 
-    gender_m = re.search(r"(?:Gender|Sex)\s*[:\-]?\s*(Male|Female|Other|M|F)\b", full_text, re.IGNORECASE)
+    gender_m = re.search(
+        r"(?:Gender|Sex)\s*[:.\-\s]+(Male|Female|Other|M|F)\b",
+        full_text,
+        re.IGNORECASE,
+    )
     if not gender_m:
-        gender_m = re.search(r"\(\d{1,3}\s*([MF])\)", full_text, re.IGNORECASE)
+        gender_m = re.search(r"(?:\(|\b)\d{1,3}\s*/?\s*([MF])\b", full_text, re.IGNORECASE)
     if gender_m:
         g_raw = gender_m.group(1).strip().lower()
         if g_raw in ("m", "male"):
