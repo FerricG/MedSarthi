@@ -440,7 +440,11 @@ class QrRemoteUploadManager:
                 from pyngrok import conf, ngrok
 
                 if token:
-                    ngrok.set_auth_token(token)
+                    try:
+                        ngrok.set_auth_token(token)
+                    except Exception as tok_exc:
+                        if "already set" not in str(tok_exc).lower():
+                            raise
                 pyngrok_cfg = conf.get_default()
                 if token:
                     pyngrok_cfg.auth_token = token
