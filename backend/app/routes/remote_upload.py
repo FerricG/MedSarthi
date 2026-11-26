@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 import shutil
@@ -28,6 +29,7 @@ from app.services.media.qr_upload_service import qr_upload_manager
 
 router = APIRouter(prefix="/remote-upload", tags=["remote-upload"])
 _optional_bearer = HTTPBearer(auto_error=False)
+logger = logging.getLogger(__name__)
 
 
 class RemoteUploadStartRequest(BaseModel):
@@ -188,7 +190,7 @@ async def import_uploaded_image_to_prescription(
     # Run OCR extraction immediately so demographics & medicines are ready
     try:
         extracted = await extract_document_text_and_fields(
-            file_path=dest_path,
+            source=dest_path,
             mime_type=mime_type,
             settings=settings,
         )
@@ -200,7 +202,8 @@ async def import_uploaded_image_to_prescription(
         doc.processing_status = "completed"
         if settings.SYNTHETIC_PROTOTYPE_MODE:
             doc.verification_status = "patient_confirmed"
-    except Exception:
+    except Exception as exc:
+        logger.exception("OCR extraction failed during remote upload import: %s", exc)
         doc.processing_status = "completed"
         doc.ocr_raw_text = ""
         doc.ocr_structured_fields = {}

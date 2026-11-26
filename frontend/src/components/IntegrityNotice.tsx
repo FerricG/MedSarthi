@@ -19,9 +19,7 @@ export function IntegrityNotice({
   const { t } = useI18n();
   const normalized = normalizeIntegrityReport(report, status);
   const effectiveStatus = normalized.status;
-  const [expanded, setExpanded] = useState(
-    showDetailsByDefault || effectiveStatus === "blocked" || effectiveStatus === "warning"
-  );
+  const [expanded, setExpanded] = useState(Boolean(showDetailsByDefault));
 
   const config = {
     passed: {

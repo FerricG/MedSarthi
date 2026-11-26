@@ -5,6 +5,7 @@ import {
   PrototypeSafetyBanner,
   PrototypeSafetyFooter,
 } from "@/components/PrototypeBanner";
+import { RightSidebarNav } from "@/components/RightSidebarNav";
 import { Providers } from "@/components/Providers";
 import "@/styles/globals.css";
 
@@ -39,6 +40,7 @@ export default function RootLayout({
         <Providers>
           <AccessibilityTopBar />
           <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">{children}</main>
+          <RightSidebarNav />
           <PrototypeSafetyBanner />
           <PrototypeSafetyFooter />
         </Providers>

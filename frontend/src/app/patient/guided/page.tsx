@@ -11,6 +11,7 @@ import {
   Clock,
   Edit3,
   FileCheck2,
+  FileText,
   LogIn,
   MessageCircle,
   Pill,
@@ -26,6 +27,7 @@ import {
 } from "lucide-react";
 import { InteractiveNarrator, type NarratorPose } from "@/components/InteractiveNarrator";
 import { QrPhoneUploadPanel } from "@/components/QrPhoneUploadPanel";
+import { ReportsWorkspace } from "@/components/ReportsWorkspace";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { SUPPORTED_LOCALES, useI18n } from "@/i18n/I18nProvider";
@@ -86,6 +88,7 @@ export default function PatientGuidedFlowPage() {
   const { user, patientProfile, login, guestLogin, refreshMe } = useAuth();
 
   const [step, setStep] = useState(1);
+  const [viewMode, setViewMode] = useState<"guided_cards" | "reports_workspace">("guided_cards");
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -446,47 +449,86 @@ export default function PatientGuidedFlowPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      {/* Top Bar: Step Progress + Switch Mode */}
+    <div className="mx-auto max-w-4xl space-y-5">
+      {/* Top Bar: View Mode Switcher + Step Progress */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href="/patient" className="ms-btn-secondary tap-target inline-flex items-center gap-2 px-4 text-sm">
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          <span>Change Language / Mode</span>
-        </Link>
-        <div className="flex items-center gap-1.5" aria-label={`Step ${step} of 6`}>
-          {STEP_LABELS.map((lbl, idx) => {
-            const num = idx + 1;
-            const active = num === step;
-            const done = num < step;
-            return (
-              <span
-                key={lbl}
-                title={lbl}
-                className="flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-extrabold"
-                style={{
-                  backgroundColor: active
-                    ? "var(--ms-primary)"
-                    : done
-                      ? "var(--ms-primary-soft)"
-                      : "var(--ms-surface-alt)",
-                  color: active ? "var(--ms-primary-ink)" : "var(--ms-ink)",
-                  borderColor: active || done ? "var(--ms-primary)" : "var(--ms-border)",
-                }}
-              >
-                {done ? "✓" : num}
-              </span>
-            );
-          })}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/patient" className="ms-btn-secondary tap-target inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold">
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            <span>Mode</span>
+          </Link>
+          <div
+            className="flex items-center gap-1 rounded-xl border-2 p-1"
+            style={{ borderColor: "var(--ms-border)", backgroundColor: "var(--ms-surface)" }}
+          >
+            <button
+              type="button"
+              onClick={() => setViewMode("guided_cards")}
+              className="tap-target rounded-lg px-3 py-1 text-xs font-extrabold transition-colors"
+              style={{
+                backgroundColor: viewMode === "guided_cards" ? "var(--ms-primary)" : "transparent",
+                color: viewMode === "guided_cards" ? "var(--ms-primary-ink)" : "var(--ms-ink)",
+              }}
+            >
+              Voice-Guided Steps
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("reports_workspace")}
+              className="tap-target rounded-lg px-3 py-1 text-xs font-extrabold transition-colors"
+              style={{
+                backgroundColor: viewMode === "reports_workspace" ? "var(--ms-primary)" : "transparent",
+                color: viewMode === "reports_workspace" ? "var(--ms-primary-ink)" : "var(--ms-ink)",
+              }}
+            >
+              Full Reports Page (Section Narrators)
+            </button>
+          </div>
         </div>
+
+        {viewMode === "guided_cards" && (
+          <div className="flex items-center gap-1.5" aria-label={`Step ${step} of 6`}>
+            {STEP_LABELS.map((lbl, idx) => {
+              const num = idx + 1;
+              const active = num === step;
+              const done = num < step;
+              return (
+                <span
+                  key={lbl}
+                  title={lbl}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-extrabold"
+                  style={{
+                    backgroundColor: active
+                      ? "var(--ms-primary)"
+                      : done
+                        ? "var(--ms-primary-soft)"
+                        : "var(--ms-surface-alt)",
+                    color: active ? "var(--ms-primary-ink)" : "var(--ms-ink)",
+                    borderColor: active || done ? "var(--ms-primary)" : "var(--ms-border)",
+                  }}
+                >
+                  {done ? "✓" : num}
+                </span>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Interactive Female Human Doctor Narrator */}
-      <InteractiveNarrator
-        pose={narratorConfig.pose}
-        message={narratorConfig.message}
-        language={locale}
-        autoSpeak={true}
-      />
+      {viewMode === "reports_workspace" ? (
+        <ReportsWorkspace
+          initialDocId={documentRecord?.id}
+          enablePerSectionNarrator={true}
+        />
+      ) : (
+        <>
+          {/* Interactive Female Human Doctor Narrator */}
+          <InteractiveNarrator
+            pose={narratorConfig.pose}
+            message={narratorConfig.message}
+            language={locale}
+            autoSpeak={true}
+          />
 
       {errorMsg && (
         <div
@@ -697,6 +739,17 @@ export default function PatientGuidedFlowPage() {
             title="Or Scan QR from Phone (Any Network)"
             onPrescriptionImported={handleImportedPrescription}
           />
+
+          <div className="pt-2 text-center">
+            <button
+              type="button"
+              onClick={() => setViewMode("reports_workspace")}
+              className="ms-btn-secondary tap-target inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold"
+            >
+              <FileText className="h-4 w-4" aria-hidden="true" />
+              <span>Or switch to Full Reports Page (with Section Narrator)</span>
+            </button>
+          </div>
         </section>
       )}
 
@@ -1104,6 +1157,8 @@ export default function PatientGuidedFlowPage() {
             </Link>
           </div>
         </section>
+      )}
+      </>
       )}
     </div>
   );

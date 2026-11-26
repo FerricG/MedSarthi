@@ -468,13 +468,17 @@ def _extract_structured_medical_fields(
 
 
 async def extract_document_text_and_fields(
-    source: bytes | str | Path,
+    source: bytes | str | Path | None = None,
     mime_type: str | None = None,
     settings: Settings | None = None,
+    file_path: bytes | str | Path | None = None,
 ) -> dict[str, Any]:
     """Extract text, structured fields, calibrated confidence, and <0.75 uncertain spans (NO guessing)."""
     cfg = settings or get_settings()
-    file_bytes = Path(source).read_bytes() if isinstance(source, (str, Path)) else source
+    actual_source = source if source is not None else file_path
+    if actual_source is None:
+        raise AppError(422, "VALIDATION_ERROR", "No document source provided for OCR extraction.")
+    file_bytes = Path(actual_source).read_bytes() if isinstance(actual_source, (str, Path)) else actual_source
     resolved_mime = mime_type or detect_document_mime(file_bytes)
     if not resolved_mime:
         raise AppError(415, "VALIDATION_ERROR", "Unsupported document format.")

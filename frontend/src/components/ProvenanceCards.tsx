@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   AlertTriangle,
   BookOpen,
@@ -9,7 +9,9 @@ import {
   Lock,
   Sparkles,
   Stethoscope,
+  Volume2,
 } from "lucide-react";
+import { speakTextWithMithi, stopActiveMithiNarration } from "@/components/AudioPlayer";
 import { useI18n } from "@/i18n/I18nProvider";
 import {
   normalizeProvenance,
@@ -99,6 +101,7 @@ export interface ProvenanceCardsProps {
   onAskDoctorClick?: (question: string) => void;
   headingMode?: "default" | "three_part_explain_everything";
   compact?: boolean;
+  enableNarrator?: boolean;
 }
 
 export function ProvenanceCards({
@@ -110,9 +113,28 @@ export function ProvenanceCards({
   onAskDoctorClick,
   headingMode = "default",
   compact = false,
+  enableNarrator = false,
 }: ProvenanceCardsProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const data = normalizeProvenance(provenance);
+  const [activeVoiceSection, setActiveVoiceSection] = useState<string | null>(null);
+
+  function handleSpeakSection(sectionId: string, text: string) {
+    if (activeVoiceSection === sectionId) {
+      stopActiveMithiNarration();
+      setActiveVoiceSection(null);
+      return;
+    }
+    setActiveVoiceSection(sectionId);
+    speakTextWithMithi(
+      text,
+      locale,
+      1.0,
+      "charvi",
+      () => setActiveVoiceSection(null),
+      () => setActiveVoiceSection(null)
+    );
+  }
 
   const doctorItems: DoctorProvidedItem[] = data.doctor_provided.map((item) =>
     typeof item === "string" ? { text: item } : item
@@ -146,19 +168,35 @@ export function ProvenanceCards({
                 {isThreePart ? `1. ${t.provenance.doctorProvided}` : t.provenance.doctorProvided}
               </h3>
             </div>
-            {originalDoctorInput && (
-              <span
-                className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-bold"
-                style={{
-                  backgroundColor: "var(--ms-surface)",
-                  borderColor: "var(--ms-prov-doctor-border)",
-                  color: "var(--ms-ink)",
-                }}
-              >
-                <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>{t.provenance.lockedSource}</span>
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {enableNarrator && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = (originalDoctorInput || "") + " " + doctorItems.map((d) => d.text).join(". ");
+                    handleSpeakSection("doctor", text || "Doctor provided information.");
+                  }}
+                  className="ms-btn-secondary tap-target inline-flex items-center gap-1.5 px-2.5 py-1 text-xs"
+                  aria-pressed={activeVoiceSection === "doctor"}
+                >
+                  <Volume2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>{activeVoiceSection === "doctor" ? "Stop" : "Listen Doctor Advice"}</span>
+                </button>
+              )}
+              {originalDoctorInput && (
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-bold"
+                  style={{
+                    backgroundColor: "var(--ms-surface)",
+                    borderColor: "var(--ms-prov-doctor-border)",
+                    color: "var(--ms-ink)",
+                  }}
+                >
+                  <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>{t.provenance.lockedSource}</span>
+                </span>
+              )}
+            </div>
           </div>
 
           {originalDoctorInput && (
@@ -202,17 +240,33 @@ export function ProvenanceCards({
               <Sparkles className="h-5 w-5 shrink-0" style={{ color: "var(--ms-prov-ai-border)" }} aria-hidden="true" />
               <h3 className="text-base font-extrabold">{t.provenance.aiSimplified}</h3>
             </div>
-            {data.ai_simplified.reading_level && (
-              <span
-                className="rounded-full border px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide"
-                style={{
-                  backgroundColor: "var(--ms-surface)",
-                  borderColor: "var(--ms-prov-ai-border)",
-                }}
-              >
-                {data.ai_simplified.reading_level.replace("_", " ")}
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {enableNarrator && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = (data.ai_simplified.summary || "") + ". " + (data.ai_simplified.steps || []).join(". ");
+                    handleSpeakSection("simplified", text || "Simple explanation of your doctor's instructions.");
+                  }}
+                  className="ms-btn-secondary tap-target inline-flex items-center gap-1.5 px-2.5 py-1 text-xs"
+                  aria-pressed={activeVoiceSection === "simplified"}
+                >
+                  <Volume2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>{activeVoiceSection === "simplified" ? "Stop" : "Listen Simple Guide"}</span>
+                </button>
+              )}
+              {data.ai_simplified.reading_level && (
+                <span
+                  className="rounded-full border px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide"
+                  style={{
+                    backgroundColor: "var(--ms-surface)",
+                    borderColor: "var(--ms-prov-ai-border)",
+                  }}
+                >
+                  {data.ai_simplified.reading_level.replace("_", " ")}
+                </span>
+              )}
+            </div>
           </div>
 
           {data.ai_simplified.summary && (
@@ -261,11 +315,27 @@ export function ProvenanceCards({
             borderColor: "var(--ms-prov-kb-border)",
           }}
         >
-          <div className="flex items-center gap-2.5">
-            <BookOpen className="h-5 w-5 shrink-0" style={{ color: "var(--ms-prov-kb-border)" }} aria-hidden="true" />
-            <h3 className="text-base font-extrabold">
-              {isThreePart ? `2. ${t.provenance.generalEducation}` : t.provenance.generalEducation}
-            </h3>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <BookOpen className="h-5 w-5 shrink-0" style={{ color: "var(--ms-prov-kb-border)" }} aria-hidden="true" />
+              <h3 className="text-base font-extrabold">
+                {isThreePart ? `2. ${t.provenance.generalEducation}` : t.provenance.generalEducation}
+              </h3>
+            </div>
+            {enableNarrator && (
+              <button
+                type="button"
+                onClick={() => {
+                  const text = data.general_education.map((g) => g.text).join(". ");
+                  handleSpeakSection("knowledge", text || "General medical knowledge.");
+                }}
+                className="ms-btn-secondary tap-target inline-flex items-center gap-1.5 px-2.5 py-1 text-xs"
+                aria-pressed={activeVoiceSection === "knowledge"}
+              >
+                <Volume2 className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{activeVoiceSection === "knowledge" ? "Stop" : "Listen Knowledge"}</span>
+              </button>
+            )}
           </div>
 
           <div className="space-y-3">
@@ -339,15 +409,31 @@ export function ProvenanceCards({
             borderColor: "var(--ms-prov-uncertain-border)",
           }}
         >
-          <div className="flex items-center gap-2.5">
-            <AlertTriangle
-              className="h-5 w-5 shrink-0"
-              style={{ color: "var(--ms-prov-uncertain-border)" }}
-              aria-hidden="true"
-            />
-            <h3 className="text-base font-extrabold">
-              {isThreePart ? `3. ${t.provenance.uncertainOrMissing}` : t.provenance.uncertainOrMissing}
-            </h3>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle
+                className="h-5 w-5 shrink-0"
+                style={{ color: "var(--ms-prov-uncertain-border)" }}
+                aria-hidden="true"
+              />
+              <h3 className="text-base font-extrabold">
+                {isThreePart ? `3. ${t.provenance.uncertainOrMissing}` : t.provenance.uncertainOrMissing}
+              </h3>
+            </div>
+            {enableNarrator && (
+              <button
+                type="button"
+                onClick={() => {
+                  const text = uncertainItems.map((u) => u.reason).join(". ");
+                  handleSpeakSection("uncertain", text || "Unclear or missing details.");
+                }}
+                className="ms-btn-secondary tap-target inline-flex items-center gap-1.5 px-2.5 py-1 text-xs"
+                aria-pressed={activeVoiceSection === "uncertain"}
+              >
+                <Volume2 className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{activeVoiceSection === "uncertain" ? "Stop" : "Listen Warnings"}</span>
+              </button>
+            )}
           </div>
 
           <ul className="space-y-2.5">
