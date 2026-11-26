@@ -6,7 +6,19 @@ from abc import ABC, abstractmethod
 from typing import Any, Literal
 from pydantic import BaseModel, Field
 
-LanguageCode = Literal["en", "hi", "hi-Latn"]
+LanguageCode = Literal[
+    "en",
+    "hi",
+    "hi-Latn",
+    "bn",
+    "mr",
+    "ta",
+    "te",
+    "gu",
+    "kn",
+    "ml",
+    "pa",
+]
 DepthLevel = Literal["very_simple", "simple", "detailed", "deep_dive"]
 ReadingComfortLevel = Literal["very_simple", "simple", "comfortable", "adaptive"]
 TerminologyPreference = Literal["plain_only", "plain_plus_medical", "medical_with_definitions"]
@@ -27,20 +39,28 @@ TranslationMode = Literal[
 
 
 def normalize_language(lang: str | None) -> str:
-    """Normalize language aliases into canonical en / hi / hi-Latn (or passthrough)."""
+    """Normalize language aliases into canonical supported language codes."""
     if not lang:
         return "en"
     cleaned = lang.strip()
-    if cleaned in ("en", "hi", "hi-Latn"):
+    canonical = {"en", "hi", "hi-Latn", "bn", "mr", "ta", "te", "gu", "kn", "ml", "pa"}
+    if cleaned in canonical:
         return cleaned
     lower = cleaned.lower()
-    if lower in ("english", "en-in", "en_in", "en-us"):
-        return "en"
-    if lower in ("hindi", "hi-in", "hi_in"):
-        return "hi"
-    if lower in ("hinglish", "hi-latn", "hi_latn", "roman-hindi"):
-        return "hi-Latn"
-    return cleaned
+    alias_map = {
+        "english": "en", "en-in": "en", "en_in": "en", "en-us": "en",
+        "hindi": "hi", "hi-in": "hi", "hi_in": "hi",
+        "hinglish": "hi-Latn", "hi-latn": "hi-Latn", "hi_latn": "hi-Latn", "roman-hindi": "hi-Latn",
+        "bengali": "bn", "bangla": "bn", "bn-in": "bn",
+        "marathi": "mr", "mr-in": "mr",
+        "tamil": "ta", "ta-in": "ta",
+        "telugu": "te", "te-in": "te",
+        "gujarati": "gu", "gu-in": "gu",
+        "kannada": "kn", "kn-in": "kn",
+        "malayalam": "ml", "ml-in": "ml",
+        "punjabi": "pa", "pa-in": "pa",
+    }
+    return alias_map.get(lower, cleaned)
 
 
 def normalize_depth(depth: str | None, comfort: str | None = None) -> str:

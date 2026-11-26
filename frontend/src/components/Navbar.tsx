@@ -33,7 +33,9 @@ export function Navbar({ compact = false }: NavbarProps) {
   }
 
   const patientLinks = [
-    { href: "/patient", label: t.nav.patientHome, icon: Home, exact: true },
+    { href: "/patient", label: "Mode", icon: Home, exact: true },
+    { href: "/patient/detailed", label: t.nav.patientHome, icon: Home, exact: true },
+    { href: "/patient/guided", label: "Guided Helper", icon: Volume2 },
     { href: "/patient/instructions", label: t.nav.instructions, icon: ClipboardList },
     { href: "/patient/reports", label: t.nav.reports, icon: FileText },
     { href: "/patient/medicines", label: t.nav.medicines, icon: Pill },

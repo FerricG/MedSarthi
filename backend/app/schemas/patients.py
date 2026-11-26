@@ -3,7 +3,19 @@
 from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator
 
-SupportedLang = Literal["en", "hi", "hi-Latn"]
+SupportedLang = Literal[
+    "en",
+    "hi",
+    "hi-Latn",
+    "bn",
+    "mr",
+    "ta",
+    "te",
+    "gu",
+    "kn",
+    "ml",
+    "pa",
+]
 ComfortLevel = Literal["very_simple", "simple", "comfortable", "adaptive"]
 DepthLevel = Literal["very_simple", "simple", "detailed", "deep_dive"]
 ResponseFormat = Literal["text", "audio", "text_audio", "visual"]
@@ -131,3 +143,22 @@ class MedicationListItemOut(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     locked_instruction: str
     kb_slug: str | None = None
+
+
+class GuidedReviewCreateRequest(BaseModel):
+    """Submit a guided prescription + Q&A session for 24-hour doctor review."""
+
+    document_id: str = Field(min_length=1, max_length=64)
+    conversation_id: str | None = Field(default=None, max_length=64)
+    patient_confirmed_demographics: bool = True
+    preferred_language: SupportedLang = "en"
+
+
+class GuidedReviewRatingRequest(BaseModel):
+    """Store 1-5 star patient feedback after guided narrator session."""
+
+    rating: int = Field(ge=1, le=5)
+    feedback_text: str | None = Field(default=None, max_length=1000)
+    document_id: str | None = Field(default=None, max_length=64)
+    conversation_id: str | None = Field(default=None, max_length=64)
+    review_id: str | None = Field(default=None, max_length=64)

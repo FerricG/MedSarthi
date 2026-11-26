@@ -5,7 +5,7 @@ import { Check, Contrast, Minus, Plus, RotateCcw, Save, Settings, ShieldCheck } 
 import { PatientGate } from "@/app/patient/_components/PatientGate";
 import { useAccessibility } from "@/contexts/AccessibilityContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useI18n, type SupportedLocale } from "@/i18n/I18nProvider";
+import { SUPPORTED_LOCALES, useI18n, type SupportedLocale } from "@/i18n/I18nProvider";
 import {
   api,
   ApiError,
@@ -258,9 +258,11 @@ function SettingsWorkspace() {
                 className="tap-target w-full rounded-xl border-2 px-3.5 py-2 font-semibold"
                 style={{ backgroundColor: "var(--ms-surface-alt)", borderColor: "var(--ms-border)", color: "var(--ms-ink)" }}
               >
-                <option value="en">English</option>
-                <option value="hi">हिन्दी (Hindi)</option>
-                <option value="hi-Latn">Hinglish</option>
+                {SUPPORTED_LOCALES.map((loc) => (
+                  <option key={loc.code} value={loc.code}>
+                    {loc.nativeLabel} ({loc.label})
+                  </option>
+                ))}
               </select>
             </div>
 

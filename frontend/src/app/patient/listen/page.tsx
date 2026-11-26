@@ -5,7 +5,7 @@ import { Headphones, Languages, Pill, Stethoscope } from "lucide-react";
 import { PatientGate } from "@/app/patient/_components/PatientGate";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { useAccessibility } from "@/contexts/AccessibilityContext";
-import { useI18n, type SupportedLocale } from "@/i18n/I18nProvider";
+import { SUPPORTED_LOCALES, useI18n, type SupportedLocale } from "@/i18n/I18nProvider";
 import {
   api,
   normalizeProvenance,
@@ -163,6 +163,24 @@ function ListenWorkspace() {
                   </button>
                 );
               })}
+              <select
+                aria-label="More languages"
+                disabled={translating}
+                value={locale}
+                onChange={(e) => void handleLanguageSwitch(e.target.value as SupportedLocale)}
+                className="tap-target rounded-xl border-2 px-2.5 py-1 text-xs font-extrabold"
+                style={{
+                  backgroundColor: "var(--ms-surface-alt)",
+                  borderColor: "var(--ms-border)",
+                  color: "var(--ms-ink)",
+                }}
+              >
+                {SUPPORTED_LOCALES.map((opt) => (
+                  <option key={opt.code} value={opt.code}>
+                    {opt.nativeLabel}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

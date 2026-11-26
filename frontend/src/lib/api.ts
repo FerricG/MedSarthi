@@ -40,7 +40,18 @@ export class ApiError extends Error {
   }
 }
 
-export type SupportedLanguage = "en" | "hi" | "hi-Latn";
+export type SupportedLanguage =
+  | "en"
+  | "hi"
+  | "hi-Latn"
+  | "bn"
+  | "mr"
+  | "ta"
+  | "te"
+  | "gu"
+  | "kn"
+  | "ml"
+  | "pa";
 export type ReadingComfortLevel = "very_simple" | "simple" | "comfortable" | "adaptive";
 export type ExplanationDepth = "very_simple" | "simple" | "detailed" | "deep_dive";
 export type ResponseFormat = "text" | "audio" | "text_audio" | "visual";
@@ -1361,6 +1372,48 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ confirm_consent: true }),
     }),
+
+  // Guided Flow Review & Rating
+  submitGuidedReview: (payload: {
+    document_id: string;
+    conversation_id?: string;
+    patient_confirmed_demographics?: boolean;
+    preferred_language?: SupportedLanguage;
+  }) =>
+    apiRequest<{
+      review_id: string;
+      document_id: string;
+      conversation_id: string | null;
+      doctor_verification_status: string;
+      eta_hours: number;
+      notification: {
+        status: string;
+        channel: string;
+        will_notify_within_24h: boolean;
+        eta_hours: number;
+        estimated_ready_at: string;
+        recipient_masked: string | null;
+        message: string;
+      };
+    }>("/api/patients/me/guided-review", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  submitGuidedReviewRating: (payload: {
+    rating: number;
+    feedback_text?: string;
+    document_id?: string;
+    conversation_id?: string;
+    review_id?: string;
+  }) =>
+    apiRequest<{ saved: boolean; rating: number; thank_you: string }>(
+      "/api/patients/me/guided-review/rating",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    ),
 
   revokeDoctorLink: (linkId: string) =>
     apiRequest<DoctorPatientLinkItem>(`/api/consent/doctor-links/${linkId}/revoke`, {

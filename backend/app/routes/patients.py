@@ -13,7 +13,7 @@ from app.models.auth import (
     User,
     compute_age_accessibility_defaults,
 )
-from app.models.clinical import Consultation, MedicalDocument
+from app.models.clinical import Consultation, Conversation, MedicalDocument
 from app.routes._helpers import (
     check_consultation_access,
     comfort_to_default_depth,
@@ -26,11 +26,14 @@ from app.routes._helpers import (
 from app.routes.auth import _serialize_patient, _serialize_preferences
 from app.schemas.common import ok_envelope
 from app.schemas.patients import (
+    GuidedReviewCreateRequest,
+    GuidedReviewRatingRequest,
     PatientOnboardingRequest,
     PatientPreferencePatch,
     PatientProfileUpdateRequest,
 )
 from app.services.knowledge.retriever import knowledge_retriever
+from app.services.notifications.notification_service import notification_framework
 
 router = APIRouter(tags=["patients"])
 
@@ -381,3 +384,108 @@ async def list_medications(
             )
 
     return ok_envelope(meds_out)
+
+
+@router.post("/patients/me/guided-review", status_code=201)
+async def submit_guided_review(
+    payload: GuidedReviewCreateRequest,
+    current_user: User = Depends(require_role("patient")),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Record a guided prescription + Q&A session for 24-hour doctor verification and queue notification stub."""
+    import uuid
+    from datetime import UTC, datetime
+
+    profile = await get_patient_profile_for_user(db, current_user)
+    doc = (
+        await db.execute(
+            select(MedicalDocument).where(
+                MedicalDocument.id == payload.document_id,
+                MedicalDocument.patient_id == profile.id,
+                MedicalDocument.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    if not doc:
+        raise AppError(404, "NOT_FOUND", "Prescription document not found.")
+
+    convo = None
+    if payload.conversation_id:
+        convo = (
+            await db.execute(
+                select(Conversation).where(
+                    Conversation.id == payload.conversation_id,
+                    Conversation.patient_id == profile.id,
+                )
+            )
+        ).scalar_one_or_none()
+
+    review_id = f"grev_{uuid.uuid4().hex[:12]}"
+    notification = notification_framework.queue_doctor_verification_alert(
+        user_email=current_user.email,
+        user_phone=current_user.phone,
+        review_id=review_id,
+        preferred_language=payload.preferred_language,
+    )
+
+    fields = dict(doc.ocr_structured_fields or {})
+    fields["guided_review"] = {
+        "review_id": review_id,
+        "document_id": doc.id,
+        "conversation_id": convo.id if convo else None,
+        "patient_confirmed_demographics": payload.patient_confirmed_demographics,
+        "eta_hours": 24,
+        "doctor_verification_status": "pending_24h_review",
+        "notification": notification.to_dict(),
+        "submitted_at": datetime.now(UTC).isoformat(),
+    }
+    doc.ocr_structured_fields = fields
+    await db.commit()
+
+    return ok_envelope(
+        {
+            "review_id": review_id,
+            "document_id": doc.id,
+            "conversation_id": convo.id if convo else None,
+            "doctor_verification_status": "pending_24h_review",
+            "eta_hours": 24,
+            "notification": notification.to_dict(),
+        }
+    )
+
+
+@router.post("/patients/me/guided-review/rating", status_code=201)
+async def submit_guided_review_rating(
+    payload: GuidedReviewRatingRequest,
+    current_user: User = Depends(require_role("patient")),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Save the patient's 1-5 star rating and feedback for the guided narrator experience."""
+    profile = await get_patient_profile_for_user(db, current_user)
+    if payload.document_id:
+        doc = (
+            await db.execute(
+                select(MedicalDocument).where(
+                    MedicalDocument.id == payload.document_id,
+                    MedicalDocument.patient_id == profile.id,
+                    MedicalDocument.deleted_at.is_(None),
+                )
+            )
+        ).scalar_one_or_none()
+        if doc:
+            fields = dict(doc.ocr_structured_fields or {})
+            fields["guided_rating"] = {
+                "rating": payload.rating,
+                "feedback_text": (payload.feedback_text or "").strip() or None,
+                "review_id": payload.review_id,
+            }
+            doc.ocr_structured_fields = fields
+            await db.commit()
+
+    return ok_envelope(
+        {
+            "saved": True,
+            "rating": payload.rating,
+            "thank_you": "Thank you for your feedback! Wishing you a speedy recovery.",
+        }
+    )

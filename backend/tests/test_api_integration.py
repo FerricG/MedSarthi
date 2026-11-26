@@ -1092,3 +1092,94 @@ async def test_guest_session_lan_cors_and_idempotent_seed(api_client):
     async with session_factory() as db:
         reseed_result = await seed_database(db)
     assert "kb_created" in reseed_result
+
+
+@pytest.mark.asyncio
+async def test_guided_review_notification_framework_rating_and_regional_lang(api_client):
+    """Verify guided-review 24h notification framework stub, star rating, and expanded regional languages."""
+    from app.services.media.ocr_service import _extract_structured_medical_fields
+
+    client, _tmp, _sm, _mp = api_client
+
+    # 1. OCR demographic extraction picks patient_name, patient_age, patient_gender
+    fields = _extract_structured_medical_fields(
+        [
+            {"text": "Patient: Anita Verma | Age: 52 | Gender: Female", "confidence": 0.95},
+            {"text": "Paracetamol 500 mg SOS", "confidence": 0.94},
+        ],
+        [],
+    )
+    assert fields["patient_name"] == "Anita Verma"
+    assert fields["patient_age"] == 52
+    assert fields["patient_gender"] == "female"
+
+    # 2. Guest session can update preferences to regional language (e.g. bn) & submit guided review
+    guest_res = await client.post("/api/auth/guest", json={})
+    assert guest_res.status_code == 201
+    tok_guest = guest_res.json()["data"]["access_token"]
+
+    pref_res = await client.patch(
+        "/api/patients/me/preferences",
+        headers=_auth_headers(tok_guest),
+        json={"preferred_language": "bn"},
+    )
+    assert pref_res.status_code == 200
+    assert pref_res.json()["data"]["preferred_language"] == "bn"
+
+    import fitz
+
+    pdf_doc = fitz.open()
+    page = pdf_doc.new_page()
+    page.insert_text((72, 72), "Patient: Anita Verma | Age: 52 | Gender: Female\nParacetamol 500 mg")
+    pdf_bytes = pdf_doc.tobytes()
+    pdf_doc.close()
+
+    # Upload a synthetic prescription PDF
+    up_res = await client.post(
+        "/api/documents/upload",
+        headers=_auth_headers(tok_guest),
+        files={"file": ("rx.pdf", pdf_bytes, "application/pdf")},
+        data={"document_type": "prescription"},
+    )
+    assert up_res.status_code == 201
+    doc_id = up_res.json()["data"]["id"]
+
+    # Guest review -> skipped_guest_no_contact
+    rev_guest = await client.post(
+        "/api/patients/me/guided-review",
+        headers=_auth_headers(tok_guest),
+        json={"document_id": doc_id, "preferred_language": "bn"},
+    )
+    assert rev_guest.status_code == 201
+    assert rev_guest.json()["data"]["eta_hours"] == 24
+    assert rev_guest.json()["data"]["notification"]["status"] == "skipped_guest_no_contact"
+
+    # Rating endpoint saves 1-5 stars
+    rate_res = await client.post(
+        "/api/patients/me/guided-review/rating",
+        headers=_auth_headers(tok_guest),
+        json={"rating": 5, "feedback_text": "Very helpful!", "document_id": doc_id},
+    )
+    assert rate_res.status_code == 201
+    assert rate_res.json()["data"]["saved"] is True
+    assert rate_res.json()["data"]["rating"] == 5
+
+    # 3. Signed-in patient -> notification framework queues email stub
+    client.cookies.clear()
+    pat_login = (await client.post("/api/demo/login", json={"role": "patient"})).json()["data"]
+    tok_pat = pat_login["access_token"]
+    up_pat = await client.post(
+        "/api/documents/upload",
+        headers=_auth_headers(tok_pat),
+        files={"file": ("rx2.pdf", pdf_bytes, "application/pdf")},
+        data={"document_type": "prescription"},
+    )
+    assert up_pat.status_code == 201
+    rev_pat = await client.post(
+        "/api/patients/me/guided-review",
+        headers=_auth_headers(tok_pat),
+        json={"document_id": up_pat.json()["data"]["id"], "preferred_language": "hi"},
+    )
+    assert rev_pat.status_code == 201
+    assert rev_pat.json()["data"]["notification"]["status"] == "framework_stub_queued"
+    assert rev_pat.json()["data"]["notification"]["will_notify_within_24h"] is True

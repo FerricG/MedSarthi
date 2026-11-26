@@ -9,7 +9,7 @@ import { api, type CuratedDiagram } from "@/lib/api";
 
 const LOCAL_DIAGRAM_FALLBACKS: Record<
   string,
-  Record<SupportedLocale, Omit<CuratedDiagram, "id" | "svg_path">>
+  Partial<Record<SupportedLocale, Omit<CuratedDiagram, "id" | "svg_path">>>
 > = {
   respiratory_airways: {
     en: {

@@ -329,6 +329,41 @@ def _extract_structured_medical_fields(
     date_match = re.search(r"\b(\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{2,4})\b", full_text)
     report_date = date_match.group(1) if date_match else None
 
+    # Extract patient demographics (name, age, gender) when printed on prescription/report
+    patient_name: str | None = None
+    patient_age: int | None = None
+    patient_gender: str | None = None
+
+    name_m = re.search(
+        r"(?:Patient\s*Name|Patient|Name)\s*:\s*([A-Za-z][A-Za-z\.\s]{1,50}?)(?=\s*(?:\||Age|Gender|Sex|Date|\(|$|\n))",
+        full_text,
+        re.IGNORECASE,
+    )
+    if name_m:
+        candidate = name_m.group(1).strip(" .,-|")
+        if candidate and not re.search(r"\[UNREADABLE\]", candidate, re.IGNORECASE):
+            patient_name = candidate
+
+    age_m = re.search(r"(?:Age)\s*[:\-]?\s*(\d{1,3})\s*(?:yrs?|years?|y)?", full_text, re.IGNORECASE)
+    if not age_m:
+        age_m = re.search(r"\((\d{1,3})\s*[MF]\)", full_text, re.IGNORECASE)
+    if age_m:
+        age_val = int(age_m.group(1))
+        if 0 < age_val <= 120:
+            patient_age = age_val
+
+    gender_m = re.search(r"(?:Gender|Sex)\s*[:\-]?\s*(Male|Female|Other|M|F)\b", full_text, re.IGNORECASE)
+    if not gender_m:
+        gender_m = re.search(r"\(\d{1,3}\s*([MF])\)", full_text, re.IGNORECASE)
+    if gender_m:
+        g_raw = gender_m.group(1).strip().lower()
+        if g_raw in ("m", "male"):
+            patient_gender = "male"
+        elif g_raw in ("f", "female"):
+            patient_gender = "female"
+        elif g_raw == "other":
+            patient_gender = "other"
+
     diagnoses: list[str] = []
     medications: list[dict[str, Any]] = []
     lab_rows: list[dict[str, Any]] = []
@@ -413,6 +448,9 @@ def _extract_structured_medical_fields(
 
     return {
         "report_date": report_date,
+        "patient_name": patient_name,
+        "patient_age": patient_age,
+        "patient_gender": patient_gender,
         "diagnoses": diagnoses,
         "medications": medications,
         "lab_rows": lab_rows,

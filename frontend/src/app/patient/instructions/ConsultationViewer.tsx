@@ -9,7 +9,7 @@ import { IntegrityNotice } from "@/components/IntegrityNotice";
 import { ProvenanceCards } from "@/components/ProvenanceCards";
 import { TermLookupModal } from "@/components/TermLookupModal";
 import { useAccessibility } from "@/contexts/AccessibilityContext";
-import { useI18n, type SupportedLocale } from "@/i18n/I18nProvider";
+import { SUPPORTED_LOCALES, useI18n, type SupportedLocale } from "@/i18n/I18nProvider";
 import {
   api,
   ApiError,
@@ -401,6 +401,24 @@ export function ConsultationViewer({ initialConsultationId }: ConsultationViewer
                     </button>
                   );
                 })}
+                <select
+                  aria-label="More languages"
+                  disabled={adapting}
+                  value={locale}
+                  onChange={(e) => void handleLanguageOrDepthSwitch(e.target.value as SupportedLocale)}
+                  className="tap-target rounded-xl border-2 px-3 py-1.5 text-sm font-extrabold"
+                  style={{
+                    backgroundColor: "var(--ms-surface-alt)",
+                    borderColor: "var(--ms-border)",
+                    color: "var(--ms-ink)",
+                  }}
+                >
+                  {SUPPORTED_LOCALES.map((opt) => (
+                    <option key={opt.code} value={opt.code}>
+                      {opt.nativeLabel} ({opt.label})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Adaptive Depth Control */}

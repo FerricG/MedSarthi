@@ -131,7 +131,7 @@ class PatientPreference(Base):
     __tablename__ = "patient_preferences"
     __table_args__ = (
         CheckConstraint(
-            "preferred_language IN ('en', 'hi', 'hi-Latn')",
+            "preferred_language IN ('en', 'hi', 'hi-Latn', 'bn', 'mr', 'ta', 'te', 'gu', 'kn', 'ml', 'pa')",
             name="ck_pref_lang",
         ),
         CheckConstraint(

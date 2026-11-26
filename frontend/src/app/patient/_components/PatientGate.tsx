@@ -122,7 +122,7 @@ export function PatientGate({ children, showBackHome = true, title }: PatientGat
         <div className="flex flex-wrap items-center justify-between gap-3">
           {showBackHome ? (
             <Link
-              href="/patient"
+              href="/patient/detailed"
               className="ms-btn-secondary tap-target inline-flex items-center gap-2 px-4 text-sm"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />

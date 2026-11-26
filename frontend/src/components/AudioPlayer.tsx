@@ -23,14 +23,41 @@ export function splitIntoSentences(text: string): string[] {
   return parts.length > 0 ? parts : [cleaned];
 }
 
+export function getSpeechLangTag(locale: SupportedLocale): string {
+  const map: Record<SupportedLocale, string> = {
+    en: "en-IN",
+    hi: "hi-IN",
+    "hi-Latn": "hi-IN",
+    bn: "bn-IN",
+    mr: "mr-IN",
+    ta: "ta-IN",
+    te: "te-IN",
+    gu: "gu-IN",
+    kn: "kn-IN",
+    ml: "ml-IN",
+    pa: "pa-IN",
+  };
+  return map[locale] || "en-IN";
+}
+
+function pickPreferredVoice(voices: SpeechSynthesisVoice[], langTag: string, preferFemale = true): SpeechSynthesisVoice | undefined {
+  const prefix = langTag.split("-")[0].toLowerCase();
+  const matching = voices.filter((v) => v.lang.toLowerCase().startsWith(prefix));
+  const pool = matching.length > 0 ? matching : voices.filter((v) => v.lang.toLowerCase().startsWith("en"));
+  if (!preferFemale || pool.length === 0) return pool[0];
+  const femaleHint = /(female|swara|neerja|heera|kalpana|lekha|priya|aditi|raveena|zira|samantha|victoria|karen|veena|tessa|aria|jenny)/i;
+  return pool.find((v) => femaleHint.test(v.name)) || pool[0];
+}
+
 /**
- * Lightweight standalone TTS helper for onboarding "Hear this question" & quick voice prompts.
+ * Lightweight standalone TTS helper for onboarding, narrator, & quick voice prompts.
  */
 export function speakTextWithBrowserTts(
   text: string,
   locale: SupportedLocale = "en",
   speed: AudioSpeed = 1.0,
-  onEnd?: () => void
+  onEnd?: () => void,
+  preferFemale = true
 ): () => void {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) {
     onEnd?.();
@@ -40,11 +67,11 @@ export function speakTextWithBrowserTts(
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = speed;
-  utterance.lang = locale === "hi" ? "hi-IN" : "en-IN";
+  utterance.pitch = preferFemale ? 1.06 : 1.0;
+  const langTag = getSpeechLangTag(locale);
+  utterance.lang = langTag;
   const voices = window.speechSynthesis.getVoices();
-  const preferredVoice =
-    voices.find((v) => v.lang.toLowerCase().startsWith(locale === "hi" ? "hi" : "en-in")) ||
-    voices.find((v) => v.lang.toLowerCase().startsWith(locale === "hi" ? "hi" : "en"));
+  const preferredVoice = pickPreferredVoice(voices, langTag, preferFemale);
   if (preferredVoice) {
     utterance.voice = preferredVoice;
   }

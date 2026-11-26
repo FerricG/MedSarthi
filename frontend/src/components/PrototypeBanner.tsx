@@ -6,14 +6,13 @@ import { AlertTriangle, Contrast, Globe, HeartPulse, Minus, Plus, RotateCcw } fr
 import { Navbar } from "@/components/Navbar";
 import { useAccessibility } from "@/contexts/AccessibilityContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { type SupportedLocale, useI18n } from "@/i18n/I18nProvider";
+import { SUPPORTED_LOCALES, type SupportedLocale, useI18n } from "@/i18n/I18nProvider";
 import { api } from "@/lib/api";
 
-const LOCALE_OPTIONS: { code: SupportedLocale; label: string }[] = [
-  { code: "en", label: "English" },
-  { code: "hi", label: "हिन्दी" },
-  { code: "hi-Latn", label: "Hinglish" },
-];
+const LOCALE_OPTIONS = SUPPORTED_LOCALES.map((item) => ({
+  code: item.code,
+  label: item.nativeLabel,
+}));
 
 export function PrototypeSafetyBanner() {
   const { t } = useI18n();
@@ -119,15 +118,15 @@ export function AccessibilityTopBar() {
           </Link>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* One-Tap Language Pill Buttons + Accessible Select */}
+            {/* Quick Language Pills + Full 11-Language Selector */}
             <div
-              className="flex flex-wrap items-center gap-1 rounded-xl border-2 p-1"
+              className="flex flex-wrap items-center gap-1.5 rounded-xl border-2 p-1"
               style={{ borderColor: "var(--ms-border)" }}
               role="group"
               aria-label={t.languages.label}
             >
-              <Globe className="ml-1.5 mr-1 h-4 w-4 shrink-0" aria-hidden="true" />
-              {LOCALE_OPTIONS.map((opt) => {
+              <Globe className="ml-1.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              {LOCALE_OPTIONS.slice(0, 3).map((opt) => {
                 const active = locale === opt.code;
                 return (
                   <button
@@ -145,6 +144,23 @@ export function AccessibilityTopBar() {
                   </button>
                 );
               })}
+              <select
+                aria-label="More Indian languages"
+                value={locale}
+                onChange={(e) => handleLanguageSwitch(e.target.value as SupportedLocale)}
+                className="tap-target rounded-lg border px-2 py-1 text-xs font-bold"
+                style={{
+                  backgroundColor: "var(--ms-surface-alt)",
+                  borderColor: "var(--ms-border)",
+                  color: "var(--ms-ink)",
+                }}
+              >
+                {LOCALE_OPTIONS.map((opt) => (
+                  <option key={opt.code} value={opt.code}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Font Scale Controls */}
