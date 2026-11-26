@@ -38,6 +38,15 @@ async def lifespan(_app: FastAPI):
         from app.services.media.qr_upload_service import qr_upload_manager
 
         threading.Thread(target=qr_upload_manager.start, daemon=True).start()
+
+    if "pytest" not in sys.modules:
+        from app.services.media.mithi_service import mithi_tts_service
+
+        threading.Thread(
+            target=mithi_tts_service.warmup_and_preload_cache,
+            daemon=True,
+            name="mithi-startup-warmup",
+        ).start()
     try:
         yield
     finally:

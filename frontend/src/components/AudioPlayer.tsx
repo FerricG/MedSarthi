@@ -138,7 +138,11 @@ export function speakTextWithMithi(
         onError?.("Audio playback failed.");
         onEnd?.();
       };
-      await audio.play();
+      try {
+        await audio.play();
+      } catch (playErr) {
+        console.warn("Autoplay prevented or playback interrupted:", playErr);
+      }
     } catch (err) {
       stop();
       onError?.(err instanceof Error ? err.message : "Mithi v2 Flash TTS failed.");

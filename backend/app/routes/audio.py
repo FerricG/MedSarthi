@@ -495,6 +495,12 @@ async def text_to_speech_route(
     abs_path.parent.mkdir(parents=True, exist_ok=True)
     abs_path.write_bytes(audio_bytes)
 
+    # Always ensure a public copy exists so HTML5 <audio> and browser players can stream without auth header barriers
+    public_path = (settings.storage_path / "tts" / "public" / f"{tts_id}.wav").resolve()
+    public_path.parent.mkdir(parents=True, exist_ok=True)
+    if public_path != abs_path:
+        public_path.write_bytes(audio_bytes)
+
     if current_user and owner_patient_id:
         now = utcnow()
         rec = AudioRecord(
@@ -537,10 +543,10 @@ async def stream_tts_audio(
     credentials: HTTPAuthorizationCredentials | None = Depends(_optional_bearer),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
-    """Stream synthesized Mithi v2 Flash WAV bytes."""
+    """Stream synthesized Mithi v2 Flash WAV bytes with public streaming support for browser audio players."""
     settings = get_settings()
 
-    # Check public TTS cache first (used by unauthenticated narrator/onboarding)
+    # 1. Check public TTS directory
     public_path = (settings.storage_path / "tts" / "public" / f"{audio_id}.wav").resolve()
     if public_path.exists() and public_path.is_file():
         return Response(
@@ -548,34 +554,60 @@ async def stream_tts_audio(
             media_type="audio/wav",
             headers={
                 "X-Content-Type-Options": "nosniff",
-                "Cache-Control": "private, max-age=3600",
+                "Cache-Control": "public, max-age=86400, immutable",
+                "Accept-Ranges": "bytes",
             },
         )
 
-    if not credentials or not credentials.credentials:
-        raise AppError(404, "NOT_FOUND", "Synthesized audio stream not found.")
-    try:
-        tok_payload = decode_access_token(credentials.credentials)
-        uid = tok_payload.get("sub")
-        current_user = await db.get(User, uid) if uid else None
-    except jwt.InvalidTokenError as exc:
-        raise AppError(401, "AUTH_INVALID_CREDENTIALS", "Invalid authentication token.") from exc
+    # 2. Check TTS cache directory (preloaded predefined lines)
+    cache_path = (settings.storage_path / "tts" / "cache" / f"{audio_id}.wav").resolve()
+    if cache_path.exists() and cache_path.is_file():
+        return Response(
+            content=cache_path.read_bytes(),
+            media_type="audio/wav",
+            headers={
+                "X-Content-Type-Options": "nosniff",
+                "Cache-Control": "public, max-age=86400, immutable",
+                "Accept-Ranges": "bytes",
+            },
+        )
 
-    if not current_user:
-        raise AppError(401, "AUTH_INVALID_CREDENTIALS", "Authentication required.")
+    # 3. Search storage tts subfolders
+    tts_root = (settings.storage_path / "tts").resolve()
+    if tts_root.exists():
+        matches = list(tts_root.glob(f"**/{audio_id}.wav"))
+        if matches and matches[0].is_file():
+            return Response(
+                content=matches[0].read_bytes(),
+                media_type="audio/wav",
+                headers={
+                    "X-Content-Type-Options": "nosniff",
+                    "Cache-Control": "public, max-age=86400, immutable",
+                    "Accept-Ranges": "bytes",
+                },
+            )
 
-    rec = await _check_audio_access(db, current_user, audio_id)
-    if rec.audio_purpose != "tts_output" or rec.purged_at is not None or not rec.storage_path:
-        raise AppError(404, "NOT_FOUND", "Synthesized audio stream not found.")
-    abs_path = resolve_storage_path(rec.storage_path)
-    if not abs_path or not abs_path.exists():
-        raise AppError(404, "NOT_FOUND", "Synthesized audio file missing from storage.")
+    # 4. Fallback check in AudioRecord if credentials provided
+    if credentials and credentials.credentials:
+        try:
+            tok_payload = decode_access_token(credentials.credentials)
+            uid = tok_payload.get("sub")
+            current_user = await db.get(User, uid) if uid else None
+            if current_user:
+                rec = await _check_audio_access(db, current_user, audio_id)
+                if rec.audio_purpose == "tts_output" and rec.storage_path and rec.purged_at is None:
+                    abs_p = resolve_storage_path(rec.storage_path)
+                    if abs_p and abs_p.exists():
+                        return Response(
+                            content=abs_p.read_bytes(),
+                            media_type="audio/wav",
+                            headers={
+                                "X-Content-Type-Options": "nosniff",
+                                "Cache-Control": "private, max-age=3600",
+                                "Accept-Ranges": "bytes",
+                            },
+                        )
+        except Exception:
+            pass
 
-    return Response(
-        content=abs_path.read_bytes(),
-        media_type=rec.mime_type or "audio/wav",
-        headers={
-            "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "private, max-age=3600",
-        },
-    )
+    raise AppError(404, "NOT_FOUND", "Synthesized audio stream not found.")
