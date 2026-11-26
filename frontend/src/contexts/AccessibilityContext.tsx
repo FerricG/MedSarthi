@@ -97,11 +97,7 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<AccessibilityState>;
         setPrefs((prev) => ({ ...prev, ...parsed }));
-        if (
-          parsed.preferredLanguage === "en" ||
-          parsed.preferredLanguage === "hi" ||
-          parsed.preferredLanguage === "hi-Latn"
-        ) {
+        if (parsed.preferredLanguage) {
           setLocale(parsed.preferredLanguage);
         }
       }
@@ -188,9 +184,20 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
   const hydrateFromServer = useCallback(
     (serverPrefs: PatientPreferences | null) => {
       if (!serverPrefs) return;
-      setLocale(serverPrefs.preferred_language);
+      let localLocale: string | null = null;
+      try {
+        localLocale = window.localStorage.getItem("medsarthi_locale");
+      } catch {
+        localLocale = null;
+      }
+      const effectiveLang =
+        localLocale && localLocale !== "en" && serverPrefs.preferred_language === "en"
+          ? (localLocale as SupportedLocale)
+          : serverPrefs.preferred_language;
+
+      setLocale(effectiveLang);
       setPrefs({
-        preferredLanguage: serverPrefs.preferred_language,
+        preferredLanguage: effectiveLang,
         readingComfortLevel: serverPrefs.reading_comfort_level,
         explanationDepth: serverPrefs.explanation_depth,
         preferredResponseFormat: serverPrefs.preferred_response_format,

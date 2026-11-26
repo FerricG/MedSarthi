@@ -1183,3 +1183,60 @@ async def test_guided_review_notification_framework_rating_and_regional_lang(api
     assert rev_pat.status_code == 201
     assert rev_pat.json()["data"]["notification"]["status"] == "framework_stub_queued"
     assert rev_pat.json()["data"]["notification"]["will_notify_within_24h"] is True
+
+
+@pytest.mark.asyncio
+async def test_qr_remote_upload_flask_and_import_prescription(api_client):
+    """Verify Flask mobile image upload -> storage/uploads/ -> status -> import-to-prescription."""
+    import io
+    from PIL import Image, ImageDraw
+    from app.services.media.qr_upload_service import qr_upload_manager
+
+    client, _tmp, _sm, _mp = api_client
+
+    # Build a synthetic prescription PNG image
+    img = Image.new("RGB", (600, 300), "white")
+    draw = ImageDraw.Draw(img)
+    draw.text((20, 20), "Patient: Kavita Rao | Age: 48 | Gender: Female", fill="black")
+    draw.text((20, 60), "Paracetamol 500 mg twice daily", fill="black")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    png_bytes = buf.getvalue()
+
+    # Exercise the Flask mobile upload app directly via test_client()
+    flask_app = qr_upload_manager._build_flask_app()
+    flask_client = flask_app.test_client()
+
+    page_res = flask_client.get("/")
+    assert page_res.status_code == 200
+    assert b"Select Images" in page_res.data
+    assert b"Upload Images" in page_res.data
+
+    up_res = flask_client.post(
+        "/upload",
+        data={"images": (io.BytesIO(png_bytes), "phone_rx.png")},
+        content_type="multipart/form-data",
+    )
+    assert up_res.status_code == 201
+    up_json = up_res.get_json()
+    assert up_json["status"] == "ok"
+    assert up_json["count"] == 1
+    saved_filename = up_json["filenames"][0]
+    assert (qr_upload_manager.upload_dir / saved_filename).exists()
+
+    # Check FastAPI status endpoint sees the uploaded image
+    status_res = await client.get("/api/remote-upload/status")
+    assert status_res.status_code == 200
+    assert status_res.json()["data"]["uploaded_count"] >= 1
+    assert any(f["filename"] == saved_filename for f in status_res.json()["data"]["uploaded_files"])
+
+    # Import into MedSarthi prescription document (works even without auth!)
+    client.cookies.clear()
+    imp_res = await client.post(
+        "/api/remote-upload/import-to-prescription",
+        json={"filename": saved_filename},
+    )
+    assert imp_res.status_code == 201
+    imp_data = imp_res.json()["data"]
+    assert imp_data["document_type"] == "prescription"
+    assert imp_data["original_filename"] == saved_filename

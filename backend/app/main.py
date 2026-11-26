@@ -21,6 +21,7 @@ from app.routes import (
     health,
     knowledge,
     patients,
+    remote_upload,
 )
 
 settings = get_settings()
@@ -113,6 +114,7 @@ def create_app() -> FastAPI:
     app.include_router(audio.router, prefix="/api")
     app.include_router(doctor.router, prefix="/api")
     app.include_router(knowledge.router, prefix="/api")
+    app.include_router(remote_upload.router, prefix="/api")
     return app
 
 

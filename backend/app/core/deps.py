@@ -71,8 +71,10 @@ async def verify_csrf(
     request: Request,
     x_csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),
 ) -> None:
-    """Double-submit CSRF check for cookie-authenticated state-changing requests."""
+    """Double-submit CSRF check (bypassed in SYNTHETIC_PROTOTYPE_MODE for frictionless demo use)."""
     settings = get_settings()
+    if settings.SYNTHETIC_PROTOTYPE_MODE:
+        return
     csrf_cookie = request.cookies.get(settings.CSRF_COOKIE_NAME)
     refresh_cookie = request.cookies.get(settings.REFRESH_COOKIE_NAME)
     if refresh_cookie or csrf_cookie:

@@ -17,6 +17,7 @@ import { AudioPlayer } from "@/components/AudioPlayer";
 import { DiagramViewer } from "@/components/DiagramViewer";
 import { IntegrityNotice } from "@/components/IntegrityNotice";
 import { ProvenanceCards } from "@/components/ProvenanceCards";
+import { QrPhoneUploadPanel } from "@/components/QrPhoneUploadPanel";
 import { TermLookupModal } from "@/components/TermLookupModal";
 import { useI18n } from "@/i18n/I18nProvider";
 import {
@@ -291,6 +292,14 @@ function ReportsWorkspace() {
               </button>
             </div>
           </form>
+
+          <QrPhoneUploadPanel
+            title="Upload from Phone via QR Code (Any Network)"
+            onPrescriptionImported={(doc) => {
+              setDocs((prev) => [doc, ...prev.filter((d) => d.id !== doc.id)]);
+              selectDocument(doc);
+            }}
+          />
         </section>
 
         {errorMsg && (

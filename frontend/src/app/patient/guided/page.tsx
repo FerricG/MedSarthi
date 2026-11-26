@@ -25,6 +25,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { InteractiveNarrator, type NarratorPose } from "@/components/InteractiveNarrator";
+import { QrPhoneUploadPanel } from "@/components/QrPhoneUploadPanel";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { SUPPORTED_LOCALES, useI18n } from "@/i18n/I18nProvider";
@@ -233,6 +234,25 @@ export default function PatientGuidedFlowPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function handleImportedPrescription(extracted: MedicalDocumentDTO) {
+    setErrorMsg(null);
+    setDocumentRecord(extracted);
+    const fields = (extracted.ocr_structured_fields || {}) as Record<string, unknown>;
+    const extName = typeof fields.patient_name === "string" ? fields.patient_name : "";
+    const extAge = fields.patient_age !== undefined && fields.patient_age !== null ? String(fields.patient_age) : "";
+    const extGender = typeof fields.patient_gender === "string" ? fields.patient_gender : "";
+
+    setPatientName(extName || patientProfile?.name || "Patient");
+    setPatientAge(extAge || (patientProfile?.age_years ? String(patientProfile.age_years) : ""));
+    if (extGender === "male" || extGender === "female" || extGender === "other") {
+      setPatientGender(extGender);
+    } else if (patientProfile?.gender) {
+      setPatientGender(patientProfile.gender);
+    }
+    setEditingDemographics(false);
+    setStep(3);
   }
 
   async function handleConfirmAndExplain(confirmedCorrect: boolean) {
@@ -672,6 +692,11 @@ export default function PatientGuidedFlowPage() {
               </span>
             </button>
           </div>
+
+          <QrPhoneUploadPanel
+            title="Or Scan QR from Phone (Any Network)"
+            onPrescriptionImported={handleImportedPrescription}
+          />
         </section>
       )}
 

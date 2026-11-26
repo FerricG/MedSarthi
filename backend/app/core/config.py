@@ -71,6 +71,9 @@ class Settings(BaseSettings):
     TTS_ALLOW_UNOFFICIAL_EDGE: bool = False
     TRANSLATION_PROVIDER: str = "llm"
 
+    QR_UPLOAD_PORT: int = 5000
+    NGROK_AUTHTOKEN: str = Field(default="")
+
     @property
     def storage_path(self) -> Path:
         path = Path(self.STORAGE_LOCAL_DIR)

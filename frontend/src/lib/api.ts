@@ -750,6 +750,28 @@ export function normalizeProvenance(raw: unknown): ProvenancePayload {
   };
 }
 
+export interface RemoteUploadFileItem {
+  filename: string;
+  size_bytes: number;
+  created_at: string;
+  imported_document_id?: string | null;
+}
+
+export interface RemoteUploadStatusDTO {
+  running: boolean;
+  server_status: "running" | "stopped";
+  tunnel_status: "connected" | "error" | "stopped";
+  port: number;
+  public_url: string | null;
+  local_url: string | null;
+  active_qr_url: string | null;
+  qr_data_url: string | null;
+  upload_dir: string;
+  uploaded_count: number;
+  uploaded_files: RemoteUploadFileItem[];
+  tunnel_error: string | null;
+}
+
 export function normalizeIntegrityReport(
   raw: unknown,
   fallbackStatus?: "unchecked" | "passed" | "warning" | "blocked"
@@ -1414,6 +1436,37 @@ export const api = {
         body: JSON.stringify(payload),
       }
     ),
+
+  // QR Phone-to-PC Remote Image Upload
+  startRemoteUpload: (payload?: { port?: number; authtoken?: string }) =>
+    apiRequest<RemoteUploadStatusDTO>("/api/remote-upload/start", {
+      method: "POST",
+      body: JSON.stringify(payload || {}),
+      skipAuthRefresh: true,
+    }),
+
+  getRemoteUploadStatus: () =>
+    apiRequest<RemoteUploadStatusDTO>("/api/remote-upload/status", {
+      skipAuthRefresh: true,
+    }),
+
+  stopRemoteUpload: () =>
+    apiRequest<RemoteUploadStatusDTO>("/api/remote-upload/stop", {
+      method: "POST",
+      skipAuthRefresh: true,
+    }),
+
+  openRemoteUploadFolder: () =>
+    apiRequest<{ opened: boolean; upload_dir: string }>("/api/remote-upload/open-folder", {
+      method: "POST",
+      skipAuthRefresh: true,
+    }),
+
+  importRemoteUploadToPrescription: (filename?: string) =>
+    apiRequest<MedicalDocumentDTO>("/api/remote-upload/import-to-prescription", {
+      method: "POST",
+      body: JSON.stringify(filename ? { filename } : {}),
+    }),
 
   revokeDoctorLink: (linkId: string) =>
     apiRequest<DoctorPatientLinkItem>(`/api/consent/doctor-links/${linkId}/revoke`, {
