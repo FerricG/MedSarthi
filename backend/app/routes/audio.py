@@ -7,11 +7,14 @@ from pathlib import Path
 from typing import Any
 import uuid
 from fastapi import APIRouter, Depends, File, Form, Response, UploadFile
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+import jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.deps import get_current_user, get_db, require_doctor_patient_link
 from app.core.exceptions import AppError
+from app.core.security import decode_access_token
 from app.models.auth import DoctorPatientLink, User
 from app.models.clinical import AudioRecord
 from app.routes._helpers import (
@@ -40,6 +43,7 @@ from app.services.media.audio_service import (
 )
 
 router = APIRouter(tags=["audio"])
+_optional_bearer = HTTPBearer(auto_error=False)
 
 _VALID_AUDIO_PURPOSES = {"doctor_consultation", "patient_voice_query"}
 
@@ -439,10 +443,10 @@ async def speech_to_text_ephemeral(
 @router.post("/speech/tts")
 async def text_to_speech_route(
     payload: TtsRequest,
-    current_user: User = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_optional_bearer),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Synthesize speech or return browser speechSynthesis timing cues at 0.75x-1.25x speed."""
+    """Synthesize speech using Piper TTS and return streamable WAV URL + sentence cues."""
     tts_res = await synthesize_speech_with_cues(
         text=payload.text,
         language=payload.language,
@@ -451,43 +455,54 @@ async def text_to_speech_route(
     )
 
     audio_bytes: bytes | None = tts_res.get("audio_bytes")
-    stream_url: str | None = None
-    audio_id: str | None = None
-    fallback_to_browser = bool(tts_res.get("use_browser_speech_synthesis", True))
+    if not audio_bytes:
+        raise AppError(500, "AUDIO_GENERATION_FAILED", "Piper TTS returned empty audio.")
+
+    current_user: User | None = None
+    if credentials and credentials.credentials:
+        try:
+            tok_payload = decode_access_token(credentials.credentials)
+            uid = tok_payload.get("sub")
+            if uid:
+                current_user = await db.get(User, uid)
+        except jwt.InvalidTokenError:
+            current_user = None
 
     owner_patient_id: str | None = None
-    if current_user.role == "patient":
-        profile = await get_patient_profile_for_user(db, current_user, required=False)
-        owner_patient_id = profile.id if profile else None
-    else:
-        doctor = await get_doctor_profile_for_user(db, current_user, required=False)
-        if doctor:
-            link = (
-                await db.execute(
-                    select(DoctorPatientLink).where(
-                        DoctorPatientLink.doctor_id == doctor.id,
-                        DoctorPatientLink.consent_status == "active",
-                        DoctorPatientLink.revoked_at.is_(None),
+    if current_user:
+        if current_user.role == "patient":
+            profile = await get_patient_profile_for_user(db, current_user, required=False)
+            owner_patient_id = profile.id if profile else None
+        else:
+            doctor = await get_doctor_profile_for_user(db, current_user, required=False)
+            if doctor:
+                link = (
+                    await db.execute(
+                        select(DoctorPatientLink).where(
+                            DoctorPatientLink.doctor_id == doctor.id,
+                            DoctorPatientLink.consent_status == "active",
+                            DoctorPatientLink.revoked_at.is_(None),
+                        )
                     )
-                )
-            ).scalars().first()
-            owner_patient_id = link.patient_id if link else None
+                ).scalars().first()
+                owner_patient_id = link.patient_id if link else None
 
-    if audio_bytes and owner_patient_id:
-        settings = get_settings()
-        tts_id = str(uuid.uuid4())
-        rel_path = f"tts/{owner_patient_id}/{tts_id}.mp3"
-        abs_path = (settings.storage_path / rel_path).resolve()
-        abs_path.parent.mkdir(parents=True, exist_ok=True)
-        abs_path.write_bytes(audio_bytes)
+    settings = get_settings()
+    tts_id = str(uuid.uuid4())
+    folder_key = owner_patient_id or "public"
+    rel_path = f"tts/{folder_key}/{tts_id}.wav"
+    abs_path = (settings.storage_path / rel_path).resolve()
+    abs_path.parent.mkdir(parents=True, exist_ok=True)
+    abs_path.write_bytes(audio_bytes)
 
+    if current_user and owner_patient_id:
         now = utcnow()
         rec = AudioRecord(
             id=tts_id,
             patient_id=owner_patient_id,
             uploaded_by_user_id=current_user.id,
             audio_purpose="tts_output",
-            mime_type=tts_res.get("mime_type") or "audio/mpeg",
+            mime_type="audio/wav",
             duration_seconds=tts_res.get("duration_seconds"),
             file_size_bytes=len(audio_bytes),
             storage_path=rel_path,
@@ -499,19 +514,18 @@ async def text_to_speech_route(
         )
         db.add(rec)
         await db.commit()
-        audio_id = tts_id
-        stream_url = f"/api/speech/tts/{tts_id}"
-        fallback_to_browser = False
 
+    stream_url = f"/api/speech/tts/{tts_id}"
     return ok_envelope(
         {
-            "audio_id": audio_id,
+            "audio_id": tts_id,
             "stream_url": stream_url,
             "duration_seconds": tts_res.get("duration_seconds", 0.0),
             "audio_speed": tts_res.get("audio_speed", 1.0),
             "language": tts_res.get("language", payload.language),
             "provider": tts_res.get("provider"),
-            "fallback_to_browser": fallback_to_browser,
+            "voice_name": tts_res.get("voice_name"),
+            "fallback_to_browser": False,
             "cues": tts_res.get("sentence_cues") or [],
         }
     )
@@ -520,10 +534,36 @@ async def text_to_speech_route(
 @router.get("/speech/tts/{audio_id}")
 async def stream_tts_audio(
     audio_id: str,
-    current_user: User = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_optional_bearer),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
-    """Stream synthesized TTS MP3/WAV bytes for authorized patient or linked doctor."""
+    """Stream synthesized Piper TTS WAV bytes."""
+    settings = get_settings()
+
+    # Check public TTS cache first (used by unauthenticated narrator/onboarding)
+    public_path = (settings.storage_path / "tts" / "public" / f"{audio_id}.wav").resolve()
+    if public_path.exists() and public_path.is_file():
+        return Response(
+            content=public_path.read_bytes(),
+            media_type="audio/wav",
+            headers={
+                "X-Content-Type-Options": "nosniff",
+                "Cache-Control": "private, max-age=3600",
+            },
+        )
+
+    if not credentials or not credentials.credentials:
+        raise AppError(404, "NOT_FOUND", "Synthesized audio stream not found.")
+    try:
+        tok_payload = decode_access_token(credentials.credentials)
+        uid = tok_payload.get("sub")
+        current_user = await db.get(User, uid) if uid else None
+    except jwt.InvalidTokenError as exc:
+        raise AppError(401, "AUTH_INVALID_CREDENTIALS", "Invalid authentication token.") from exc
+
+    if not current_user:
+        raise AppError(401, "AUTH_INVALID_CREDENTIALS", "Authentication required.")
+
     rec = await _check_audio_access(db, current_user, audio_id)
     if rec.audio_purpose != "tts_output" or rec.purged_at is not None or not rec.storage_path:
         raise AppError(404, "NOT_FOUND", "Synthesized audio stream not found.")
@@ -533,7 +573,7 @@ async def stream_tts_audio(
 
     return Response(
         content=abs_path.read_bytes(),
-        media_type=rec.mime_type or "audio/mpeg",
+        media_type=rec.mime_type or "audio/wav",
         headers={
             "X-Content-Type-Options": "nosniff",
             "Cache-Control": "private, max-age=3600",

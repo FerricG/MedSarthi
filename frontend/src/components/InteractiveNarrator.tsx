@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
-import { speakTextWithBrowserTts } from "@/components/AudioPlayer";
+import { speakTextWithPiper, stopActivePiperNarration } from "@/components/AudioPlayer";
 import { useAccessibility } from "@/contexts/AccessibilityContext";
 import { type SupportedLocale, useI18n } from "@/i18n/I18nProvider";
 import { type AudioSpeed } from "@/lib/api";
@@ -40,9 +40,7 @@ export function InteractiveNarrator({
   const stopSpeaking = useCallback(() => {
     stopRef.current?.();
     stopRef.current = null;
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
+    stopActivePiperNarration();
     setIsSpeaking(false);
   }, []);
 
@@ -51,14 +49,13 @@ export function InteractiveNarrator({
       if (muted || !message.trim()) return;
       stopSpeaking();
       setIsSpeaking(true);
-      stopRef.current = speakTextWithBrowserTts(
+      stopRef.current = speakTextWithPiper(
         message,
         activeLang,
         overrideSpeed ?? prefs.audioSpeed,
         () => {
           setIsSpeaking(false);
-        },
-        true
+        }
       );
     },
     [activeLang, message, muted, prefs.audioSpeed, stopSpeaking]

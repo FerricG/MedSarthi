@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { Check, Edit3, Mic, RotateCcw, Square, Volume2 } from "lucide-react";
-import { speakTextWithBrowserTts } from "@/components/AudioPlayer";
+import { speakTextWithPiper } from "@/components/AudioPlayer";
 import { useI18n, type SupportedLocale } from "@/i18n/I18nProvider";
 import { api, ApiError } from "@/lib/api";
 
@@ -237,7 +237,7 @@ export function VoiceInputButton({
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => speakTextWithBrowserTts(editedText, activeLang)}
+                onClick={() => speakTextWithPiper(editedText, activeLang)}
                 className="ms-btn-secondary tap-target inline-flex items-center gap-1.5 px-3 text-xs"
               >
                 <Volume2 className="h-4 w-4" aria-hidden="true" />

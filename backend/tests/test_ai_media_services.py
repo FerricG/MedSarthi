@@ -758,7 +758,11 @@ async def test_audio_ffmpeg_stt_tts_cues_and_purge(seeded_session, monkeypatch: 
         language="en",
         audio_speed=1.25,
     )
-    assert cues_slow["use_browser_speech_synthesis"] is True
+    assert cues_slow["use_browser_speech_synthesis"] is False
+    assert cues_slow["provider"] == "piper_tts"
+    assert cues_slow["mime_type"] == "audio/wav"
+    assert isinstance(cues_slow["audio_bytes"], (bytes, bytearray))
+    assert cues_slow["audio_bytes"][:4] == b"RIFF"
     assert len(cues_slow["sentence_cues"]) == 2
     assert cues_slow["sentence_cues"][0]["start_ms"] == 0
     assert cues_slow["duration_seconds"] > cues_fast["duration_seconds"]
@@ -820,3 +824,49 @@ async def test_audio_ffmpeg_stt_tts_cues_and_purge(seeded_session, monkeypatch: 
     # Direct blob deletion removes active file too
     assert delete_audio_blob(str(active_file)) is True
     assert not active_file.exists()
+
+
+@pytest.mark.asyncio
+async def test_piper_tts_caching_preprocessing_speed_and_long_text():
+    """Verify Piper TTS loads & caches voice once, cleans text, handles long text, and adjusts speed."""
+    from app.core.exceptions import AppError
+    from app.services.media.piper_service import piper_tts_service, preprocess_text_for_speech
+
+    # 1. Text cleaning & empty/unsupported character handling
+    cleaned = preprocess_text_for_speech("**Take Paracetamol 500 mg** — 1 tablet if fever > 100°F [link](https://example.com)")
+    assert "milligrams" in cleaned
+    assert "degrees Fahrenheit" in cleaned
+    assert "**" not in cleaned
+    assert "https://" not in cleaned
+
+    with pytest.raises(AppError) as exc_info:
+        await piper_tts_service.synthesize_wav_async("   *** ###   ")
+    assert exc_info.value.code == "VALIDATION_ERROR"
+
+    # 2. Voice instance is cached across calls (no repeated reload/download)
+    v1, name1 = piper_tts_service.get_voice()
+    v2, name2 = piper_tts_service.get_voice()
+    assert v1 is v2
+    assert name1 == name2 == "en_US-amy-medium"
+
+    # 3. Short text at 0.75x vs 1.25x speed
+    slow = await piper_tts_service.synthesize_wav_async("Take one tablet after breakfast.", audio_speed=0.75)
+    fast = await piper_tts_service.synthesize_wav_async("Take one tablet after breakfast.", audio_speed=1.25)
+    assert slow["wav_bytes"][:4] == b"RIFF"
+    assert fast["wav_bytes"][:4] == b"RIFF"
+    assert slow["duration_seconds"] > fast["duration_seconds"]
+
+    # 4. Long multi-sentence text chunking
+    long_text = " ".join(
+        [
+            "Namaste! I am Dr. Sarthi, your friendly healthcare guide.",
+            "Please take Paracetamol 500 mg only when you have fever or body ache.",
+            "Do not take more than four tablets in twenty-four hours.",
+            "Continue your blood pressure medicine Amlodipine 5 mg every morning after breakfast.",
+            "Drink plenty of warm water, rest well, and contact your doctor if fever lasts over three days.",
+        ]
+        * 2
+    )
+    long_res = await piper_tts_service.synthesize_wav_async(long_text, audio_speed=1.0)
+    assert long_res["wav_bytes"][:4] == b"RIFF"
+    assert long_res["duration_seconds"] > 5.0

@@ -1,12 +1,10 @@
 """Media processing services (OCR & verification, FFmpeg audio normalization, STT/TTS, purge)."""
 
 from app.services.media.audio_service import (
-    AzureSpeechTTSProvider,
-    BrowserSpeechTTSProvider,
     DeepgramSTTProvider,
-    EdgeTTSProvider,
     GroqWhisperSTTProvider,
     MAX_AUDIO_BYTES,
+    PiperTTSProvider,
     STTProvider,
     STT_CONFIRMATION_THRESHOLD,
     SUPPORTED_AUDIO_SPEEDS,
@@ -36,16 +34,14 @@ from app.services.media.ocr_service import (
 )
 
 __all__ = [
-    "AzureSpeechTTSProvider",
-    "BrowserSpeechTTSProvider",
     "CRITICAL_CONFIDENCE_THRESHOLD",
     "DeepgramSTTProvider",
-    "EdgeTTSProvider",
     "GENERAL_CONFIDENCE_THRESHOLD",
     "GroqWhisperSTTProvider",
     "MAX_AUDIO_BYTES",
     "MAX_DOCUMENT_BYTES",
     "MAX_PDF_PAGES",
+    "PiperTTSProvider",
     "STTProvider",
     "STT_CONFIRMATION_THRESHOLD",
     "SUPPORTED_AUDIO_SPEEDS",

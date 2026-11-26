@@ -31,7 +31,7 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict:
 
     has_pymupdf = importlib.util.find_spec("fitz") is not None
     has_rapidocr = importlib.util.find_spec("rapidocr") is not None
-    has_edge_tts = importlib.util.find_spec("edge_tts") is not None
+    has_piper = importlib.util.find_spec("piper") is not None
 
     if has_pymupdf and has_rapidocr:
         ocr_local = "pymupdf+rapidocr"
@@ -48,7 +48,7 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict:
             "db": db_status,
             "storage": storage_status,
             "ocr_local": ocr_local,
-            "tts_local": "edge_tts" if has_edge_tts else "unavailable",
+            "tts_local": "piper_tts" if has_piper else "unavailable",
             "ai_providers": {
                 "llm": (
                     "configured"
@@ -61,7 +61,7 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict:
                     else ("pymupdf_rapidocr_local" if has_pymupdf and has_rapidocr else "pymupdf_local")
                 ),
                 "stt": "configured" if (settings.DEEPGRAM_API_KEY or settings.GROQ_API_KEY) else "fallback_browser",
-                "tts": "configured" if settings.AZURE_SPEECH_KEY else "fallback_browser",
+                "tts": "piper_tts_local" if has_piper else "unavailable",
             },
         }
     )

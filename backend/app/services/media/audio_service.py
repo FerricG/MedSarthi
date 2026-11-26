@@ -20,6 +20,7 @@ from app.core.config import Settings, get_settings
 from app.core.exceptions import AppError
 from app.models.clinical import AudioRecord
 from app.services.ai.base import normalize_language
+from app.services.media.piper_service import piper_tts_service
 
 MAX_AUDIO_BYTES = 50 * 1024 * 1024  # 50 MB
 GROQ_STT_MAX_BYTES = 25 * 1024 * 1024  # 25 MB
@@ -537,133 +538,13 @@ class TTSProvider(ABC):
         """Synthesize text and return audio metadata + accurate sentence_cues."""
 
 
-def _resolve_azure_voice(language: str, voice_preference: str) -> tuple[str, str]:
-    lang = normalize_language(language)
-    is_male = "male" in (voice_preference or "").lower()
-    if lang == "hi":
-        return ("hi-IN", "hi-IN-MadhurNeural" if is_male else "hi-IN-SwaraNeural")
-    return ("en-IN", "en-IN-PrabhatNeural" if is_male else "en-IN-NeerjaNeural")
+class PiperTTSProvider(TTSProvider):
+    """Lightweight CPU-only Piper TTS returning WAV bytes and synchronized sentence_cues."""
 
-
-def _speed_to_ssml_rate(speed: float) -> str:
-    pct = int(round((normalize_audio_speed(speed) - 1.0) * 100))
-    return f"{pct:+d}%"
-
-
-class AzureSpeechTTSProvider(TTSProvider):
-    """Azure AI Speech F0 Neural TTS returning MP3 bytes + synchronized sentence_cues."""
-
-    provider_name = "azure_speech"
+    provider_name = "piper_tts"
 
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
-        self.key = self.settings.AZURE_SPEECH_KEY.strip()
-        self.region = self.settings.AZURE_SPEECH_REGION.strip()
-
-    def is_configured(self) -> bool:
-        return bool(self.key and self.region)
-
-    async def synthesize(
-        self,
-        text: str,
-        language: str = "en",
-        voice_preference: str = "warm_female",
-        audio_speed: float = 1.0,
-    ) -> dict[str, Any]:
-        if not self.is_configured():
-            raise AppError(503, "PROVIDER_UNAVAILABLE", "Azure Speech TTS is not configured.")
-
-        speed = normalize_audio_speed(audio_speed)
-        xml_lang, voice_name = _resolve_azure_voice(language, voice_preference)
-        escaped = (
-            text.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace('"', "&quot;")
-        )
-        ssml = (
-            f"<speak version='1.0' xml:lang='{xml_lang}'>"
-            f"<voice xml:lang='{xml_lang}' name='{voice_name}'>"
-            f"<prosody rate='{_speed_to_ssml_rate(speed)}'>{escaped}</prosody>"
-            f"</voice></speak>"
-        )
-        url = f"https://{self.region}.tts.speech.microsoft.com/cognitiveservices/v1"
-        headers = {
-            "Ocp-Apim-Subscription-Key": self.key,
-            "Content-Type": "application/ssml+xml",
-            "X-Microsoft-OutputFormat": "audio-16khz-32kbitrate-mono-mp3",
-            "User-Agent": "MedSarthi/0.1",
-        }
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.post(url, headers=headers, content=ssml.encode("utf-8"))
-        if resp.status_code >= 400:
-            raise AppError(503, "PROVIDER_UNAVAILABLE", f"Azure Speech TTS error ({resp.status_code}).")
-
-        cues, duration_s = build_sentence_cues(text, audio_speed=speed)
-        return {
-            "provider": self.provider_name,
-            "voice_name": voice_name,
-            "language": normalize_language(language),
-            "audio_speed": speed,
-            "mime_type": "audio/mpeg",
-            "audio_bytes": resp.content,
-            "duration_seconds": duration_s,
-            "sentence_cues": cues,
-            "use_browser_speech_synthesis": False,
-        }
-
-
-class EdgeTTSProvider(TTSProvider):
-    """Unofficial Microsoft Edge TTS — disabled unless TTS_ALLOW_UNOFFICIAL_EDGE=true."""
-
-    provider_name = "edge_tts"
-
-    def __init__(self, settings: Settings | None = None) -> None:
-        self.settings = settings or get_settings()
-
-    def is_configured(self) -> bool:
-        return bool(self.settings.TTS_ALLOW_UNOFFICIAL_EDGE and self.settings.SYNTHETIC_PROTOTYPE_MODE)
-
-    async def synthesize(
-        self,
-        text: str,
-        language: str = "en",
-        voice_preference: str = "warm_female",
-        audio_speed: float = 1.0,
-    ) -> dict[str, Any]:
-        if not self.is_configured():
-            raise AppError(403, "RBAC_FORBIDDEN", "Unofficial edge-tts is disabled by configuration.")
-        import edge_tts
-
-        speed = normalize_audio_speed(audio_speed)
-        _xml_lang, voice_name = _resolve_azure_voice(language, voice_preference)
-        communicate = edge_tts.Communicate(text, voice_name, rate=_speed_to_ssml_rate(speed))
-        chunks: list[bytes] = []
-        word_cues: list[dict[str, Any]] = []
-        async for msg in communicate.stream():
-            if msg["type"] == "audio":
-                chunks.append(msg["data"])
-            elif msg["type"] in ("WordBoundary", "SentenceBoundary"):
-                word_cues.append(msg)
-
-        cues, duration_s = build_sentence_cues(text, audio_speed=speed)
-        return {
-            "provider": self.provider_name,
-            "voice_name": voice_name,
-            "language": normalize_language(language),
-            "audio_speed": speed,
-            "mime_type": "audio/mpeg",
-            "audio_bytes": b"".join(chunks),
-            "duration_seconds": duration_s,
-            "sentence_cues": cues,
-            "use_browser_speech_synthesis": False,
-        }
-
-
-class BrowserSpeechTTSProvider(TTSProvider):
-    """Zero-outage offline TTS returning exact sentence_cues + browser speechSynthesis metadata."""
-
-    provider_name = "browser_speech_synthesis"
 
     def is_configured(self) -> bool:
         return True
@@ -677,19 +558,26 @@ class BrowserSpeechTTSProvider(TTSProvider):
     ) -> dict[str, Any]:
         speed = normalize_audio_speed(audio_speed)
         lang = normalize_language(language)
-        speech_lang = "hi-IN" if lang == "hi" else "en-IN"
-        cues, duration_s = build_sentence_cues(text, audio_speed=speed)
+        piper_res = await piper_tts_service.synthesize_wav_async(
+            text,
+            audio_speed=speed,
+            settings=self.settings,
+        )
+        cues, est_duration_s = build_sentence_cues(
+            piper_res["cleaned_text"],
+            audio_speed=speed,
+        )
+        duration_s = float(piper_res.get("duration_seconds") or est_duration_s)
         return {
             "provider": self.provider_name,
-            "voice_name": f"browser:{speech_lang}",
+            "voice_name": piper_res["voice_name"],
             "language": lang,
-            "speech_lang": speech_lang,
             "audio_speed": speed,
-            "mime_type": "application/json",
-            "audio_bytes": None,
+            "mime_type": "audio/wav",
+            "audio_bytes": piper_res["wav_bytes"],
             "duration_seconds": duration_s,
             "sentence_cues": cues,
-            "use_browser_speech_synthesis": True,
+            "use_browser_speech_synthesis": False,
         }
 
 
@@ -700,34 +588,10 @@ async def synthesize_speech_with_cues(
     audio_speed: float = 1.0,
     settings: Settings | None = None,
 ) -> dict[str, Any]:
-    """Synthesize speech via Azure F0 -> optional edge-tts -> Browser speechSynthesis with sentence_cues."""
+    """Synthesize speech using Piper TTS on CPU with synchronized sentence_cues."""
     cfg = settings or get_settings()
-    azure = AzureSpeechTTSProvider(cfg)
-    if azure.is_configured():
-        try:
-            return await azure.synthesize(
-                text=text,
-                language=language,
-                voice_preference=voice_preference,
-                audio_speed=audio_speed,
-            )
-        except Exception as exc:
-            logger.warning("Azure Speech TTS failed, falling back cleanly: %s", exc)
-
-    edge = EdgeTTSProvider(cfg)
-    if edge.is_configured():
-        try:
-            return await edge.synthesize(
-                text=text,
-                language=language,
-                voice_preference=voice_preference,
-                audio_speed=audio_speed,
-            )
-        except Exception as exc:
-            logger.warning("edge-tts failed, falling back to browser speechSynthesis cues: %s", exc)
-
-    browser = BrowserSpeechTTSProvider()
-    return await browser.synthesize(
+    provider = PiperTTSProvider(cfg)
+    return await provider.synthesize(
         text=text,
         language=language,
         voice_preference=voice_preference,

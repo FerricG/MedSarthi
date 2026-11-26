@@ -65,11 +65,18 @@ class Settings(BaseSettings):
     DEEPGRAM_API_KEY: str = Field(default="")
     DEEPGRAM_MIP_OPT_OUT: bool = True
 
-    TTS_PRIMARY_PROVIDER: str = "azure_speech"
-    AZURE_SPEECH_KEY: str = Field(default="")
-    AZURE_SPEECH_REGION: str = Field(default="")
-    TTS_ALLOW_UNOFFICIAL_EDGE: bool = False
+    TTS_PRIMARY_PROVIDER: str = "piper"
+    PIPER_VOICE_NAME: str = "en_US-amy-medium"
+    PIPER_MODEL_DIR: str = "./models/piper"
+    PIPER_AUTO_DOWNLOAD: bool = True
     TRANSLATION_PROVIDER: str = "llm"
+
+    @property
+    def piper_model_path(self) -> Path:
+        path = Path(self.PIPER_MODEL_DIR)
+        if not path.is_absolute():
+            path = (BACKEND_DIR / path).resolve()
+        return path
 
     QR_UPLOAD_PORT: int = 5000
     NGROK_AUTHTOKEN: str = Field(default="")

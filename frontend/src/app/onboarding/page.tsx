@@ -19,7 +19,7 @@ import {
   Sparkles,
   Volume2,
 } from "lucide-react";
-import { speakTextWithBrowserTts } from "@/components/AudioPlayer";
+import { speakTextWithPiper } from "@/components/AudioPlayer";
 import { computeAgeDefaults, useAccessibility } from "@/contexts/AccessibilityContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -230,7 +230,7 @@ function OnboardingFlow() {
           </span>
           <button
             type="button"
-            onClick={() => speakTextWithBrowserTts(getQuestionSpeechText(step), selectedLang, prefs.audioSpeed)}
+            onClick={() => speakTextWithPiper(getQuestionSpeechText(step), selectedLang, prefs.audioSpeed)}
             className="ms-btn-secondary tap-target inline-flex items-center gap-2 px-4 text-sm"
           >
             <Volume2 className="h-5 w-5" style={{ color: "var(--ms-primary)" }} aria-hidden="true" />
@@ -682,7 +682,7 @@ function OnboardingFlow() {
                 <button
                   type="button"
                   onClick={() =>
-                    speakTextWithBrowserTts(
+                    speakTextWithPiper(
                       t.onboarding.previewSampleText,
                       selectedLang,
                       prefs.audioSpeed

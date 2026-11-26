@@ -40,47 +40,98 @@ export function getSpeechLangTag(locale: SupportedLocale): string {
   return map[locale] || "en-IN";
 }
 
-function pickPreferredVoice(voices: SpeechSynthesisVoice[], langTag: string, preferFemale = true): SpeechSynthesisVoice | undefined {
-  const prefix = langTag.split("-")[0].toLowerCase();
-  const matching = voices.filter((v) => v.lang.toLowerCase().startsWith(prefix));
-  const pool = matching.length > 0 ? matching : voices.filter((v) => v.lang.toLowerCase().startsWith("en"));
-  if (!preferFemale || pool.length === 0) return pool[0];
-  const femaleHint = /(female|swara|neerja|heera|kalpana|lekha|priya|aditi|raveena|zira|samantha|victoria|karen|veena|tessa|aria|jenny)/i;
-  return pool.find((v) => femaleHint.test(v.name)) || pool[0];
+let activeGlobalStop: (() => void) | null = null;
+let globalSpeechSeq = 0;
+
+export function stopActivePiperNarration(): void {
+  globalSpeechSeq += 1;
+  activeGlobalStop?.();
+  activeGlobalStop = null;
 }
 
 /**
- * Lightweight standalone TTS helper for onboarding, narrator, & quick voice prompts.
+ * Stream Piper TTS WAV audio from /api/speech/tts with global overlap prevention.
  */
-export function speakTextWithBrowserTts(
+export function speakTextWithPiper(
   text: string,
   locale: SupportedLocale = "en",
   speed: AudioSpeed = 1.0,
   onEnd?: () => void,
-  preferFemale = true
+  onError?: (msg: string) => void
 ): () => void {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+  const cleaned = text.trim();
+  if (!cleaned) {
     onEnd?.();
     return () => {};
   }
 
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = speed;
-  utterance.pitch = preferFemale ? 1.06 : 1.0;
-  const langTag = getSpeechLangTag(locale);
-  utterance.lang = langTag;
-  const voices = window.speechSynthesis.getVoices();
-  const preferredVoice = pickPreferredVoice(voices, langTag, preferFemale);
-  if (preferredVoice) {
-    utterance.voice = preferredVoice;
-  }
-  utterance.onend = () => onEnd?.();
-  utterance.onerror = () => onEnd?.();
-  window.speechSynthesis.speak(utterance);
+  stopActivePiperNarration();
+  const mySeq = ++globalSpeechSeq;
+
+  let cancelled = false;
+  let audioEl: HTMLAudioElement | null = null;
+  let blobUrl: string | null = null;
+
+  const stop = () => {
+    cancelled = true;
+    if (audioEl) {
+      audioEl.pause();
+      audioEl.src = "";
+      audioEl = null;
+    }
+    if (blobUrl) {
+      URL.revokeObjectURL(blobUrl);
+      blobUrl = null;
+    }
+  };
+
+  activeGlobalStop = stop;
+
+  void (async () => {
+    try {
+      const res = await api.textToSpeech({
+        text: cleaned,
+        language: locale,
+        voice_preference: "warm_female",
+        audio_speed: speed,
+      });
+      if (cancelled || globalSpeechSeq !== mySeq || !res.stream_url) {
+        onEnd?.();
+        return;
+      }
+      const url = await fetchAuthenticatedBlobUrl(res.stream_url);
+      if (cancelled || globalSpeechSeq !== mySeq) {
+        URL.revokeObjectURL(url);
+        onEnd?.();
+        return;
+      }
+      blobUrl = url;
+      const audio = new Audio(url);
+      audioEl = audio;
+      audio.onended = () => {
+        if (blobUrl) {
+          URL.revokeObjectURL(blobUrl);
+          blobUrl = null;
+        }
+        if (activeGlobalStop === stop) activeGlobalStop = null;
+        onEnd?.();
+      };
+      audio.onerror = () => {
+        stop();
+        onError?.("Audio playback failed.");
+        onEnd?.();
+      };
+      await audio.play();
+    } catch (err) {
+      stop();
+      onError?.(err instanceof Error ? err.message : "Piper TTS failed.");
+      onEnd?.();
+    }
+  })();
 
   return () => {
-    window.speechSynthesis.cancel();
+    stop();
+    if (activeGlobalStop === stop) activeGlobalStop = null;
   };
 }
 
@@ -121,13 +172,12 @@ export function AudioPlayer({
   const [status, setStatus] = useState<PlaybackStatus>("idle");
   const [speed, setSpeed] = useState<AudioSpeed>(prefs.audioSpeed);
   const [activeSentenceIdx, setActiveSentenceIdx] = useState<number | null>(null);
-  const [usingBrowserFallback, setUsingBrowserFallback] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const blobUrlRef = useRef<string | null>(null);
   const cuesRef = useRef<TtsCue[]>([]);
   const speechTokenRef = useRef(0);
-  const timerRef = useRef<number | null>(null);
   const activeLineRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -143,13 +193,7 @@ export function AudioPlayer({
 
   const cleanupPlayback = useCallback(() => {
     speechTokenRef.current += 1;
-    if (timerRef.current !== null) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
+    stopActivePiperNarration();
     if (audioElRef.current) {
       audioElRef.current.pause();
       audioElRef.current.src = "";
@@ -174,81 +218,14 @@ export function AudioPlayer({
     setActiveSentenceIdx(null);
   }, [text, effectiveLang, cleanupPlayback]);
 
-  const playWithBrowserSpeech = useCallback(
-    (startIndex: number, rate: AudioSpeed) => {
-      const token = ++speechTokenRef.current;
-      setUsingBrowserFallback(true);
-      const list = sentences;
-      if (list.length === 0) {
-        setStatus("idle");
-        setActiveSentenceIdx(null);
-        return;
-      }
-
-      const hasSpeechApi = typeof window !== "undefined" && "speechSynthesis" in window;
-
-      const speakStep = (idx: number) => {
-        if (speechTokenRef.current !== token) return;
-        if (idx >= list.length) {
-          setStatus("idle");
-          setActiveSentenceIdx(null);
-          return;
-        }
-        setActiveSentenceIdx(idx);
-        setStatus("playing");
-
-        if (hasSpeechApi) {
-          window.speechSynthesis.cancel();
-          const utterance = new SpeechSynthesisUtterance(list[idx]);
-          utterance.rate = rate;
-          utterance.lang = effectiveLang === "hi" ? "hi-IN" : "en-IN";
-          const voices = window.speechSynthesis.getVoices();
-          const matchVoice =
-            voices.find((v) =>
-              v.lang.toLowerCase().startsWith(effectiveLang === "hi" ? "hi" : "en-in")
-            ) ||
-            voices.find((v) =>
-              v.lang.toLowerCase().startsWith(effectiveLang === "hi" ? "hi" : "en")
-            );
-          if (matchVoice) utterance.voice = matchVoice;
-
-          let advanced = false;
-          const advance = () => {
-            if (advanced || speechTokenRef.current !== token) return;
-            advanced = true;
-            speakStep(idx + 1);
-          };
-
-          utterance.onend = advance;
-          utterance.onerror = advance;
-          window.speechSynthesis.speak(utterance);
-
-          // Safety fallback if browser speechSynthesis never fires onend (e.g. headless)
-          const estMs = Math.max(1800, Math.round((list[idx].split(/\s+/).length * 420) / rate));
-          timerRef.current = window.setTimeout(() => {
-            if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
-              advance();
-            }
-          }, estMs + 1500);
-        } else {
-          const estMs = Math.max(1600, Math.round((list[idx].split(/\s+/).length * 420) / rate));
-          timerRef.current = window.setTimeout(() => {
-            speakStep(idx + 1);
-          }, estMs);
-        }
-      };
-
-      speakStep(startIndex);
-    },
-    [sentences, effectiveLang]
-  );
-
   const startPlayback = useCallback(
     async (startIdx = 0, targetSpeed: AudioSpeed = speed) => {
       if (!text.trim()) return;
+      const myToken = ++speechTokenRef.current;
       cleanupPlayback();
+      speechTokenRef.current = myToken;
       setStatus("loading");
-      setUsingBrowserFallback(false);
+      setErrorMsg(null);
 
       try {
         const res = await api.textToSpeech({
@@ -260,76 +237,68 @@ export function AudioPlayer({
           message_id: messageId,
         });
 
+        if (speechTokenRef.current !== myToken) return;
         cuesRef.current = res.cues || [];
-        if (res.stream_url && !res.fallback_to_browser && startIdx === 0) {
-          const blobUrl = await fetchAuthenticatedBlobUrl(res.stream_url);
-          blobUrlRef.current = blobUrl;
-          const audio = new Audio(blobUrl);
-          audio.playbackRate = targetSpeed;
-          audioElRef.current = audio;
+        if (!res.stream_url) {
+          throw new Error("Piper TTS stream URL missing.");
+        }
 
-          audio.ontimeupdate = () => {
-            const ms = audio.currentTime * 1000;
-            const cues = cuesRef.current;
-            if (cues.length > 0) {
-              const found = cues.findIndex((c) => ms >= c.start_ms && ms <= c.end_ms);
-              if (found >= 0) setActiveSentenceIdx(found);
-            }
-          };
-          audio.onended = () => {
-            setStatus("idle");
-            setActiveSentenceIdx(null);
-          };
-          audio.onerror = () => {
-            playWithBrowserSpeech(startIdx, targetSpeed);
-          };
-
-          await audio.play();
-          setStatus("playing");
-          setActiveSentenceIdx(0);
+        const blobUrl = await fetchAuthenticatedBlobUrl(res.stream_url);
+        if (speechTokenRef.current !== myToken) {
+          URL.revokeObjectURL(blobUrl);
           return;
         }
-      } catch {
-        // Fallback transparently to browser Web Speech synthesis
-      }
+        blobUrlRef.current = blobUrl;
+        const audio = new Audio(blobUrl);
+        audio.playbackRate = 1.0;
+        audioElRef.current = audio;
 
-      playWithBrowserSpeech(startIdx, targetSpeed);
+        if (startIdx > 0 && cuesRef.current[startIdx]) {
+          audio.currentTime = cuesRef.current[startIdx].start_ms / 1000;
+        }
+
+        audio.ontimeupdate = () => {
+          const ms = audio.currentTime * 1000;
+          const cues = cuesRef.current;
+          if (cues.length > 0) {
+            const found = cues.findIndex((c) => ms >= c.start_ms && ms <= c.end_ms);
+            if (found >= 0) setActiveSentenceIdx(found);
+          }
+        };
+        audio.onended = () => {
+          setStatus("idle");
+          setActiveSentenceIdx(null);
+        };
+        audio.onerror = () => {
+          setStatus("idle");
+          setActiveSentenceIdx(null);
+          setErrorMsg("Unable to play Piper TTS audio.");
+        };
+
+        await audio.play();
+        setStatus("playing");
+        setActiveSentenceIdx(startIdx);
+      } catch (err) {
+        setStatus("idle");
+        setActiveSentenceIdx(null);
+        setErrorMsg(err instanceof Error ? err.message : "Piper TTS failed to generate speech.");
+      }
     },
-    [
-      text,
-      speed,
-      cleanupPlayback,
-      effectiveLang,
-      explanationId,
-      messageId,
-      playWithBrowserSpeech,
-    ]
+    [text, speed, cleanupPlayback, effectiveLang, explanationId, messageId]
   );
 
   const handlePause = () => {
     if (audioElRef.current) {
       audioElRef.current.pause();
       setStatus("paused");
-      return;
     }
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.pause();
-    }
-    setStatus("paused");
   };
 
   const handleResume = () => {
     if (audioElRef.current) {
       void audioElRef.current.play();
       setStatus("playing");
-      return;
     }
-    if (typeof window !== "undefined" && "speechSynthesis" in window && window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-      setStatus("playing");
-      return;
-    }
-    playWithBrowserSpeech(activeSentenceIdx ?? 0, speed);
   };
 
   const handleStop = () => {
@@ -345,10 +314,8 @@ export function AudioPlayer({
   const handleSpeedSelect = (nextSpeed: AudioSpeed) => {
     setSpeed(nextSpeed);
     setAudioSpeed(nextSpeed);
-    if (audioElRef.current) {
-      audioElRef.current.playbackRate = nextSpeed;
-    } else if (status === "playing") {
-      playWithBrowserSpeech(activeSentenceIdx ?? 0, nextSpeed);
+    if (status === "playing") {
+      void startPlayback(activeSentenceIdx ?? 0, nextSpeed);
     }
   };
 
@@ -443,7 +410,13 @@ export function AudioPlayer({
         </div>
       </div>
 
-      {/* Live Status & Browser Fallback Info */}
+      {/* Live Status & Error Info */}
+      {errorMsg && (
+        <p role="alert" className="text-xs font-bold" style={{ color: "var(--ms-danger-ink)" }}>
+          {errorMsg}
+        </p>
+      )}
+
       {activeSentenceIdx !== null && (
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold" aria-live="polite">
           <span style={{ color: "var(--ms-primary)" }}>
@@ -452,9 +425,7 @@ export function AudioPlayer({
               total: sentences.length,
             })}
           </span>
-          {usingBrowserFallback && (
-            <span style={{ color: "var(--ms-ink-muted)" }}>{t.audio.browserFallbackNotice}</span>
-          )}
+          <span style={{ color: "var(--ms-ink-muted)" }}>Piper Neural Voice (CPU)</span>
         </div>
       )}
 
@@ -468,7 +439,7 @@ export function AudioPlayer({
                 key={idx}
                 ref={isCurrent ? activeLineRef : undefined}
                 type="button"
-                onClick={() => playWithBrowserSpeech(idx, speed)}
+                onClick={() => void startPlayback(idx, speed)}
                 aria-current={isCurrent ? "true" : undefined}
                 className="block w-full rounded-xl border-2 px-3 py-2 text-left text-sm leading-relaxed transition-colors"
                 style={{
