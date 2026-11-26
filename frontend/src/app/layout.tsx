@@ -37,8 +37,8 @@ export default function RootLayout({
     <html lang="en" className={`${notoSans.variable} ${notoDevanagari.variable}`}>
       <body className="flex min-h-screen flex-col">
         <Providers>
-          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">{children}</main>
           <AccessibilityTopBar />
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">{children}</main>
           <PrototypeSafetyBanner />
           <PrototypeSafetyFooter />
         </Providers>

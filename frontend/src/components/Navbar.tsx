@@ -28,7 +28,12 @@ export function Navbar({ compact = false }: NavbarProps) {
   const { user, patientProfile, doctorProfile, logout } = useAuth();
   const { t } = useI18n();
 
-  if (!user || pathname?.startsWith("/onboarding")) {
+  const isSimplePage =
+    pathname === "/patient/guided" ||
+    pathname?.startsWith("/patient/guided") ||
+    pathname === "/patient";
+
+  if (!user || pathname?.startsWith("/onboarding") || isSimplePage) {
     return null;
   }
 
