@@ -24,23 +24,33 @@ import {
   Upload,
   UserCheck,
   AlertTriangle,
+  ExternalLink,
+  FlaskConical,
+  Globe,
+  Image as ImageIcon,
+  Zap,
 } from "lucide-react";
 import { InteractiveNarrator, type NarratorPose } from "@/components/InteractiveNarrator";
 import { QrPhoneUploadPanel } from "@/components/QrPhoneUploadPanel";
 import { ReportsWorkspace } from "@/components/ReportsWorkspace";
+import { VisualArtifactViewer } from "@/components/VisualArtifactViewer";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { SUPPORTED_LOCALES, useI18n } from "@/i18n/I18nProvider";
 import {
   api,
   ApiError,
+  type CitationRef,
   type MedicalDocumentDTO,
   type ProvenancePayload,
+  type VisualArtifactDTO,
 } from "@/lib/api";
 
 interface GuidedChatMessage {
   role: "patient" | "assistant";
   text: string;
+  visual_artifact?: VisualArtifactDTO | null;
+  citations?: CitationRef[];
 }
 
 const STEP_LABELS = [
@@ -118,6 +128,8 @@ export default function PatientGuidedFlowPage() {
   const [questionText, setQuestionText] = useState("");
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [chatHistory, setChatHistory] = useState<GuidedChatMessage[]>([]);
+  const [researchMode, setResearchMode] = useState<"normal" | "web_research" | "deep_research">("normal");
+  const [requestVisual, setRequestVisual] = useState<boolean>(true);
 
   // Card 6: 24h Doctor Review, Notification Framework & Rating
   const [reviewReceipt, setReviewReceipt] = useState<{
@@ -326,13 +338,23 @@ export default function PatientGuidedFlowPage() {
         stt_confirmed: true,
         context_document_id: documentRecord?.id,
         target_language: locale,
+        research_mode: researchMode,
+        generate_visual: requestVisual,
       });
       setConversationId(res.conversation_id);
       const replyText =
         res.assistant_message.provenance_blocks?.ai_simplified?.summary ||
         res.assistant_message.message_text ||
         "Please ask your doctor to confirm.";
-      setChatHistory((prev) => [...prev, { role: "assistant", text: replyText }]);
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: replyText,
+          visual_artifact: res.assistant_message.visual_artifact,
+          citations: res.assistant_message.citations,
+        },
+      ]);
     } catch (err) {
       setErrorMsg(err instanceof ApiError ? err.message : "Could not send question.");
     } finally {
@@ -976,12 +998,68 @@ export default function PatientGuidedFlowPage() {
 
           {wantsQuestions && (
             <div className="space-y-4">
+              {/* Research Mode & Visual Intelligence Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl border-2 border-teal-200 dark:border-teal-800/60 bg-teal-50/50 dark:bg-teal-950/20">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-extrabold uppercase text-teal-900 dark:text-teal-200">Mode:</span>
+                  <div className="inline-flex rounded-xl p-1 bg-neutral-200/70 dark:bg-neutral-800 gap-1 text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setResearchMode("normal")}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors ${
+                        researchMode === "normal"
+                          ? "bg-white dark:bg-neutral-900 text-teal-700 dark:text-teal-300 shadow-sm font-bold"
+                          : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900"
+                      }`}
+                    >
+                      <Zap className="h-3.5 w-3.5" />
+                      <span>Normal</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setResearchMode("web_research")}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors ${
+                        researchMode === "web_research"
+                          ? "bg-white dark:bg-neutral-900 text-teal-700 dark:text-teal-300 shadow-sm font-bold"
+                          : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900"
+                      }`}
+                    >
+                      <Globe className="h-3.5 w-3.5" />
+                      <span>Web Research</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setResearchMode("deep_research")}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors ${
+                        researchMode === "deep_research"
+                          ? "bg-white dark:bg-neutral-900 text-teal-700 dark:text-teal-300 shadow-sm font-bold"
+                          : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900"
+                      }`}
+                    >
+                      <FlaskConical className="h-3.5 w-3.5" />
+                      <span>Deep Research</span>
+                    </button>
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 dark:text-neutral-200 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={requestVisual}
+                    onChange={(e) => setRequestVisual(e.target.checked)}
+                    className="rounded text-teal-600 focus:ring-teal-500 h-4 w-4"
+                  />
+                  <ImageIcon className="h-4 w-4 text-teal-600" />
+                  <span>AI Visual Diagrams</span>
+                </label>
+              </div>
+
               {chatHistory.length > 0 && (
-                <div className="space-y-3 rounded-2xl border-2 p-4" style={{ borderColor: "var(--ms-border)", backgroundColor: "var(--ms-surface-alt)" }}>
+                <div className="space-y-4 rounded-2xl border-2 p-4" style={{ borderColor: "var(--ms-border)", backgroundColor: "var(--ms-surface-alt)" }}>
                   {chatHistory.map((m, idx) => (
                     <div
                       key={idx}
-                      className={`rounded-xl p-3 text-sm font-semibold ${m.role === "patient" ? "ml-6" : "mr-6"}`}
+                      className={`rounded-xl p-3 text-sm font-semibold space-y-2 ${m.role === "patient" ? "ml-6" : "mr-6"}`}
                       style={{
                         backgroundColor: m.role === "patient" ? "var(--ms-primary-soft)" : "var(--ms-surface)",
                       }}
@@ -989,7 +1067,38 @@ export default function PatientGuidedFlowPage() {
                       <span className="block text-xs font-extrabold uppercase opacity-75">
                         {m.role === "patient" ? "You" : "Dr. Sarthi"}
                       </span>
-                      <p className="mt-1">{m.text}</p>
+                      <p className="mt-1 leading-relaxed">{m.text}</p>
+
+                      {/* AI Visual Explanation if generated */}
+                      {m.visual_artifact && (
+                        <div className="pt-2">
+                          <VisualArtifactViewer visual={m.visual_artifact} />
+                        </div>
+                      )}
+
+                      {/* Verified Research Citations */}
+                      {m.citations && m.citations.length > 0 && (
+                        <div className="rounded-xl border border-teal-200 dark:border-teal-800/60 bg-teal-50/50 dark:bg-teal-950/20 p-2.5 space-y-1.5 text-xs">
+                          <div className="flex items-center gap-1.5 font-bold text-teal-900 dark:text-teal-200">
+                            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                            <span>Verified Citations &amp; Trusted Sources</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {m.citations.map((c, cIdx) => (
+                              <a
+                                key={cIdx}
+                                href={c.source_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-teal-200 dark:border-teal-800 bg-white dark:bg-neutral-900 text-teal-950 dark:text-teal-100 hover:underline"
+                              >
+                                <span className="font-semibold">{c.source_name}</span>
+                                <ExternalLink className="h-3 w-3 opacity-60" />
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

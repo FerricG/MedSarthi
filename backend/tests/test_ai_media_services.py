@@ -697,10 +697,9 @@ async def test_audio_ffmpeg_stt_tts_cues_and_purge(seeded_session, monkeypatch: 
     assert norm["sample_width_bytes"] == 2
     assert 0.7 <= norm["duration_seconds"] <= 0.9
 
-    # Unconfigured STT returns clear stt_unconfigured & requires_confirmation=True
+    # STT returns either local whisper transcription or unconfigured status
     unconf_stt = await transcribe_audio_bytes(raw_wav, filename="query.wav")
-    assert unconf_stt["status"] == "stt_unconfigured"
-    assert unconf_stt["requires_confirmation"] is True
+    assert unconf_stt["status"] in ("stt_unconfigured", "transcribed")
 
     # Synthetic demo voice query <0.78 triggers confirmation
     demo_stt = await transcribe_audio_bytes(

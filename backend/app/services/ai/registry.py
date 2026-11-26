@@ -131,10 +131,11 @@ class ProviderRegistry:
             except (AppError, httpx.HTTPError, ValueError, TimeoutError) as exc:
                 last_exc = exc
                 logger.warning(
-                    "LLM provider '%s' failed for task '%s': %s",
+                    "LLM provider '%s' failed for task '%s': %s (%s)",
                     provider.provider_name,
                     request.task_type,
                     type(exc).__name__,
+                    exc,
                 )
                 continue
 

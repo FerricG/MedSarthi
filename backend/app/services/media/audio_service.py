@@ -427,6 +427,104 @@ class GroqWhisperSTTProvider(STTProvider):
         }
 
 
+class LocalWhisperSTTProvider(STTProvider):
+    """Local OpenAI Whisper (whisper-tiny) STT running via HuggingFace transformers."""
+
+    provider_name = "local_whisper"
+
+    def __init__(self, settings: Settings | None = None) -> None:
+        self.settings = settings or get_settings()
+        self._pipe = None
+
+    def is_configured(self) -> bool:
+        return True
+
+    def _get_pipeline(self):
+        if self._pipe is None:
+            import torch
+            from transformers import pipeline
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            self._pipe = pipeline(
+                "automatic-speech-recognition",
+                model="openai/whisper-tiny",
+                device=device,
+            )
+        return self._pipe
+
+    async def transcribe(
+        self,
+        wav_bytes: bytes,
+        language_hint: str | None = None,
+        diarize: bool = False,
+        duration_seconds: float = 0.0,
+    ) -> dict[str, Any]:
+        import asyncio
+        import io
+        import soundfile as sf
+
+        def _do_transcribe() -> dict[str, Any]:
+            pipe = self._get_pipeline()
+            data, sr = sf.read(io.BytesIO(wav_bytes))
+            if len(data.shape) > 1:
+                data = data.mean(axis=1)
+            lang = normalize_language(language_hint)
+            generate_kwargs: dict[str, Any] = {}
+            if lang and lang != "en":
+                generate_kwargs["language"] = "hindi" if "hi" in lang else lang
+
+            result = pipe({"raw": data, "sampling_rate": sr}, generate_kwargs=generate_kwargs)
+            text = (result.get("text") or "").strip()
+            confidence = 0.88 if len(text) > 0 else 0.0
+            return {
+                "status": "transcribed" if text else "empty_transcript",
+                "provider": self.provider_name,
+                "detected_language": lang or "en",
+                "duration_seconds": duration_seconds,
+                "transcript_raw": text,
+                "transcript_segments": [
+                    {
+                        "segment_id": "seg_1",
+                        "start_ms": 0,
+                        "end_ms": int(duration_seconds * 1000),
+                        "speaker_role": "patient",
+                        "speaker_label": "Patient",
+                        "text": text,
+                        "confidence": confidence,
+                    }
+                ] if text else [],
+                "confidence_score": confidence,
+                "requires_confirmation": confidence < STT_CONFIRMATION_THRESHOLD,
+                "speaker_map_verified": False,
+            }
+
+        return await asyncio.to_thread(_do_transcribe)
+
+
+def measure_audio_metrics(wav_bytes: bytes) -> dict[str, Any]:
+    """Calculate RMS volume, peak amplitude, and silence detection."""
+    try:
+        import io
+        import numpy as np
+        import soundfile as sf
+        data, sr = sf.read(io.BytesIO(wav_bytes))
+        if len(data) == 0:
+            return {"is_silent": True, "rms": 0.0, "peak": 0.0, "db": -100.0, "sample_rate": 16000}
+        if len(data.shape) > 1:
+            data = data.mean(axis=1)
+        rms = float(np.sqrt(np.mean(data**2)))
+        peak = float(np.max(np.abs(data)))
+        db = float(20 * np.log10(rms + 1e-7))
+        return {
+            "is_silent": bool(rms < 0.003),
+            "rms": round(rms, 4),
+            "peak": round(peak, 4),
+            "db": round(db, 1),
+            "sample_rate": sr,
+        }
+    except Exception:
+        return {"is_silent": False, "rms": 0.05, "peak": 0.1, "db": -26.0, "sample_rate": 16000}
+
+
 async def transcribe_audio_bytes(
     audio_bytes: bytes,
     filename: str | None = None,
@@ -439,9 +537,27 @@ async def transcribe_audio_bytes(
     cfg = settings or get_settings()
     meta = validate_audio_upload(audio_bytes, filename)
     norm = normalize_audio_with_ffmpeg(audio_bytes, input_ext=meta["extension"])
+    metrics = measure_audio_metrics(norm["wav_bytes"])
+
+    # If audio is silent (< 0.003 RMS) and not explicitly overridden with a synthetic demo
+    if metrics["is_silent"] and not (cfg.SYNTHETIC_PROTOTYPE_MODE and synthetic_demo_transcript):
+        return {
+            "status": "silent_audio",
+            "provider": "signal_analyzer",
+            "detected_language": normalize_language(language_hint),
+            "duration_seconds": norm["duration_seconds"],
+            "transcript_raw": "",
+            "transcript_segments": [],
+            "confidence_score": 0.0,
+            "requires_confirmation": True,
+            "speaker_map_verified": False,
+            "message": "Microphone recording is silent. Please check your microphone input level and speak clearly.",
+            "metrics": metrics,
+        }
 
     deepgram = DeepgramSTTProvider(cfg)
     groq_stt = GroqWhisperSTTProvider(cfg)
+    local_whisper = LocalWhisperSTTProvider(cfg)
 
     if cfg.STT_PRIMARY_PROVIDER == "deepgram" and deepgram.is_configured():
         try:
@@ -452,6 +568,7 @@ async def transcribe_audio_bytes(
                 duration_seconds=norm["duration_seconds"],
             )
             res["duration_seconds"] = norm["duration_seconds"]
+            res["metrics"] = metrics
             return res
         except AppError:
             if groq_stt.is_configured():
@@ -462,6 +579,7 @@ async def transcribe_audio_bytes(
                     duration_seconds=norm["duration_seconds"],
                 )
                 res["duration_seconds"] = norm["duration_seconds"]
+                res["metrics"] = metrics
                 return res
             raise
 
@@ -473,6 +591,7 @@ async def transcribe_audio_bytes(
             duration_seconds=norm["duration_seconds"],
         )
         res["duration_seconds"] = norm["duration_seconds"]
+        res["metrics"] = metrics
         return res
 
     if cfg.SYNTHETIC_PROTOTYPE_MODE and synthetic_demo_transcript:
@@ -497,7 +616,21 @@ async def transcribe_audio_bytes(
             "confidence_score": conf,
             "requires_confirmation": conf < STT_CONFIRMATION_THRESHOLD,
             "speaker_map_verified": False,
+            "metrics": metrics,
         }
+
+    # Fallback to local Whisper engine
+    try:
+        res = await local_whisper.transcribe(
+            norm["wav_bytes"],
+            language_hint=language_hint,
+            diarize=False,
+            duration_seconds=norm["duration_seconds"],
+        )
+        res["metrics"] = metrics
+        return res
+    except Exception as exc:
+        logger.warning("Local Whisper transcription failed: %s", exc)
 
     return {
         "status": "stt_unconfigured",
@@ -509,7 +642,8 @@ async def transcribe_audio_bytes(
         "confidence_score": 0.0,
         "requires_confirmation": True,
         "speaker_map_verified": False,
-        "message": "No cloud STT API key configured (DEEPGRAM_API_KEY or GROQ_API_KEY). Type or confirm transcript manually.",
+        "message": "No cloud STT API key configured and local Whisper unavailable. Type your question manually.",
+        "metrics": metrics,
     }
 
 

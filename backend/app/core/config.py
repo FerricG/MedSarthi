@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     LLM_ALLOW_UNPAID_TRAINING_TIER: bool = False
     GROQ_ZDR_VERIFIED: bool = False
     GROQ_API_KEY: str = Field(default="")
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
     GEMINI_API_KEY: str = Field(default="")
     GEMINI_MODEL: str = "gemini-3.5-flash-lite"
     OPENAI_API_KEY: str = Field(default="")

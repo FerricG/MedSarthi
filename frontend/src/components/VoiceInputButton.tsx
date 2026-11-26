@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Check, Edit3, Mic, RotateCcw, Square, Volume2 } from "lucide-react";
+import { Check, Edit3, Mic, RotateCcw, Square, Volume2, Wrench } from "lucide-react";
 import { speakTextWithMithi } from "@/components/AudioPlayer";
+import { MicrophoneDiagnosticModal } from "@/components/MicrophoneDiagnosticModal";
 import { useI18n, type SupportedLocale } from "@/i18n/I18nProvider";
 import { api, ApiError } from "@/lib/api";
 
@@ -13,6 +14,30 @@ export interface VoiceInputButtonProps {
     text: string,
     meta: { audioId?: string | null; confidence: number; wasConfirmed: boolean }
   ) => void;
+}
+
+// Browser Web Speech Recognition Types
+interface IWindowSpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  onresult: ((event: ISpeechRecognitionEvent) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+}
+
+interface ISpeechRecognitionEvent {
+  resultIndex: number;
+  results: {
+    length: number;
+    [index: number]: {
+      isFinal: boolean;
+      [index: number]: { transcript: string; confidence: number };
+    };
+  };
 }
 
 export function VoiceInputButton({
@@ -26,7 +51,10 @@ export function VoiceInputButton({
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  const [volumeLevel, setVolumeLevel] = useState(0); // 0 to 100
+  const [liveTranscript, setLiveTranscript] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   // Uncertain-STT Confirmation State (confidence < 0.78)
   const [confirmState, setConfirmState] = useState<{
@@ -42,19 +70,46 @@ export function VoiceInputButton({
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<number | null>(null);
+  const speechRecognizerRef = useRef<IWindowSpeechRecognition | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const accumulatedTextRef = useRef<string>("");
 
   useEffect(() => {
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       streamRef.current?.getTracks().forEach((tr) => tr.stop());
+      try {
+        speechRecognizerRef.current?.stop();
+      } catch {}
+      if (audioContextRef.current && audioContextRef.current.state !== "closed") {
+        audioContextRef.current.close().catch(() => {});
+      }
     };
   }, []);
 
   async function submitAudioBlob(blob: Blob) {
+    // If Web Speech already gave us an accurate live transcript, prioritize it!
+    const directSpeech = accumulatedTextRef.current.trim();
+    if (directSpeech.length > 0) {
+      setIsProcessing(false);
+      onConfirmedTranscript(directSpeech, {
+        confidence: 0.94,
+        wasConfirmed: true,
+      });
+      return;
+    }
+
     setIsProcessing(true);
     setErrorMsg(null);
     try {
       const res = await api.speechToText(blob, activeLang, "voice-query.webm");
+      if (res.metrics?.is_silent && !res.transcript_text) {
+        setErrorMsg("Microphone recording was silent. Please speak closer to your mic or test your microphone settings.");
+        return;
+      }
       if (res.requires_confirmation || res.confidence_score < 0.78) {
         setConfirmState({
           transcript: res.transcript_text,
@@ -75,7 +130,7 @@ export function VoiceInputButton({
       setErrorMsg(
         err instanceof ApiError
           ? err.message
-          : "Voice transcription unavailable. Please type your question below."
+          : "Voice transcription unavailable. Please click 'Test Mic' or type your question below."
       );
     } finally {
       setIsProcessing(false);
@@ -84,6 +139,8 @@ export function VoiceInputButton({
 
   async function startRecording() {
     setErrorMsg(null);
+    setLiveTranscript("");
+    accumulatedTextRef.current = "";
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       setErrorMsg("Microphone recording is not available in this browser. Please type your question.");
       return;
@@ -93,6 +150,67 @@ export function VoiceInputButton({
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       chunksRef.current = [];
+
+      // 1. Setup Audio Meter for live feedback
+      try {
+        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const ctx = new AudioCtx();
+        audioContextRef.current = ctx;
+        const source = ctx.createMediaStreamSource(stream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+        analyserRef.current = analyser;
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        const updateMeter = () => {
+          if (!analyserRef.current) return;
+          analyserRef.current.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+          const avg = sum / dataArray.length;
+          setVolumeLevel(Math.min(100, Math.round((avg / 128) * 100)));
+          animFrameRef.current = requestAnimationFrame(updateMeter);
+        };
+        updateMeter();
+      } catch (meterErr) {
+        console.warn("Audio meter init failed:", meterErr);
+      }
+
+      // 2. Initialize Browser Web Speech API for real-time live recognition
+      try {
+        const SpeechRec = (window as unknown as {
+          SpeechRecognition?: new () => IWindowSpeechRecognition;
+          webkitSpeechRecognition?: new () => IWindowSpeechRecognition;
+        }).SpeechRecognition || (window as unknown as { webkitSpeechRecognition?: new () => IWindowSpeechRecognition }).webkitSpeechRecognition;
+
+        if (SpeechRec) {
+          const recognizer = new SpeechRec();
+          recognizer.continuous = true;
+          recognizer.interimResults = true;
+          // Route language code: English en-IN, Hindi hi-IN
+          recognizer.lang = activeLang === "hi" || activeLang === "hi-Latn" ? "hi-IN" : "en-IN";
+
+          recognizer.onresult = (event) => {
+            let combined = "";
+            for (let i = 0; i < event.results.length; i++) {
+              combined += event.results[i][0].transcript + " ";
+            }
+            const clean = combined.trim();
+            setLiveTranscript(clean);
+            accumulatedTextRef.current = clean;
+          };
+          recognizer.onerror = (e) => {
+            console.warn("Web Speech API note:", e.error);
+          };
+          recognizer.start();
+          speechRecognizerRef.current = recognizer;
+        }
+      } catch (recErr) {
+        console.warn("Native SpeechRecognition not supported, using server fallback:", recErr);
+      }
+
+      // 3. MediaRecorder for server STT fallback
       const recorder = new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
 
@@ -109,10 +227,17 @@ export function VoiceInputButton({
           window.clearInterval(timerRef.current);
           timerRef.current = null;
         }
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
-        if (blob.size > 0) {
-          void submitAudioBlob(blob);
+        if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+        if (audioContextRef.current && audioContextRef.current.state !== "closed") {
+          audioContextRef.current.close().catch(() => {});
         }
+        setVolumeLevel(0);
+        try {
+          speechRecognizerRef.current?.stop();
+        } catch {}
+
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        void submitAudioBlob(blob);
       };
 
       recorder.start();
@@ -122,7 +247,7 @@ export function VoiceInputButton({
         setSeconds((s) => s + 1);
       }, 1000);
     } catch {
-      setErrorMsg("Microphone permission denied or unavailable. Please type your question.");
+      setErrorMsg("Microphone permission denied or unavailable. Please click 'Test Mic' below.");
     }
   }
 
@@ -131,6 +256,9 @@ export function VoiceInputButton({
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
     }
+    try {
+      speechRecognizerRef.current?.stop();
+    } catch {}
   }
 
   const formattedTime = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(
@@ -140,24 +268,60 @@ export function VoiceInputButton({
   return (
     <div className="space-y-3">
       <div className="flex flex-col items-center gap-2">
-        <button
-          type="button"
-          disabled={disabled || isProcessing}
-          onClick={() => (isRecording ? stopRecording() : void startRecording())}
-          aria-pressed={isRecording}
-          className="flex h-20 w-20 items-center justify-center rounded-full border-4 shadow-md transition-transform active:scale-95 disabled:opacity-50"
-          style={{
-            backgroundColor: isRecording ? "var(--ms-danger-border)" : "var(--ms-primary)",
-            borderColor: isRecording ? "var(--ms-danger-ink)" : "var(--ms-primary-hover)",
-            color: "#FFFFFF",
-          }}
-        >
-          {isRecording ? (
-            <Square className="h-8 w-8 fill-current" aria-hidden="true" />
-          ) : (
-            <Mic className="h-9 w-9" aria-hidden="true" />
+        {/* Mic Button with Pulse and Visual Ring */}
+        <div className="relative flex items-center justify-center">
+          {isRecording && (
+            <div
+              className="absolute -inset-2 rounded-full opacity-75 animate-ping"
+              style={{
+                backgroundColor: volumeLevel > 15 ? "#10b981" : "var(--ms-danger-border)",
+              }}
+            />
           )}
-        </button>
+          <button
+            type="button"
+            disabled={disabled || isProcessing}
+            onClick={() => (isRecording ? stopRecording() : void startRecording())}
+            aria-pressed={isRecording}
+            className="relative flex h-20 w-20 items-center justify-center rounded-full border-4 shadow-md transition-transform active:scale-95 disabled:opacity-50"
+            style={{
+              backgroundColor: isRecording ? "var(--ms-danger-border)" : "var(--ms-primary)",
+              borderColor: isRecording ? "var(--ms-danger-ink)" : "var(--ms-primary-hover)",
+              color: "#FFFFFF",
+            }}
+          >
+            {isRecording ? (
+              <Square className="h-8 w-8 fill-current" aria-hidden="true" />
+            ) : (
+              <Mic className="h-9 w-9" aria-hidden="true" />
+            )}
+          </button>
+        </div>
+
+        {/* Live Audio Volume Level Bar while Recording */}
+        {isRecording && (
+          <div className="w-36 space-y-1 text-center">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 border border-gray-300">
+              <div
+                className="h-full transition-all duration-75"
+                style={{
+                  width: `${volumeLevel}%`,
+                  backgroundColor: volumeLevel > 15 ? "#10b981" : "#3b82f6",
+                }}
+              />
+            </div>
+            <span className="text-[11px] font-semibold text-gray-500">
+              {volumeLevel > 5 ? "Mic picking up audio" : "Listening..."}
+            </span>
+          </div>
+        )}
+
+        {/* Live Spoken Text Preview */}
+        {liveTranscript && isRecording && (
+          <div className="max-w-md rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-center text-xs font-semibold text-emerald-900 shadow-sm animate-fade-in">
+            &ldquo;{liveTranscript}&rdquo;
+          </div>
+        )}
 
         <span className="text-sm font-extrabold">
           {isProcessing
@@ -166,23 +330,38 @@ export function VoiceInputButton({
               ? `${t.voice.listening} (${formattedTime})`
               : t.voice.tapToSpeak}
         </span>
-        <span className="text-center text-xs" style={{ color: "var(--ms-ink-muted)" }}>
-          {t.voice.consentNote}
-        </span>
+
+        {/* Test Microphone Utility Button */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowDiagnostics(true)}
+            className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:underline font-bold"
+          >
+            <Wrench className="h-3.5 w-3.5" /> Test Microphone / Audio
+          </button>
+        </div>
       </div>
 
       {errorMsg && (
-        <p
+        <div
           role="alert"
-          className="rounded-xl border-2 px-3.5 py-2.5 text-sm font-semibold"
+          className="rounded-xl border-2 px-3.5 py-2.5 text-sm font-semibold space-y-1.5"
           style={{
             backgroundColor: "var(--ms-prov-uncertain-bg)",
             borderColor: "var(--ms-prov-uncertain-border)",
             color: "var(--ms-ink)",
           }}
         >
-          {errorMsg}
-        </p>
+          <p>{errorMsg}</p>
+          <button
+            type="button"
+            onClick={() => setShowDiagnostics(true)}
+            className="ms-btn-secondary inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold"
+          >
+            <Wrench className="h-3.5 w-3.5" /> Open Microphone Diagnostics
+          </button>
+        </div>
       )}
 
       {/* Mandatory Uncertain-STT Confirmation Dialog (< 0.78 confidence) */}
@@ -198,106 +377,121 @@ export function VoiceInputButton({
             style={{
               backgroundColor: "var(--ms-surface)",
               borderColor: "var(--ms-prov-uncertain-border)",
-              color: "var(--ms-ink)",
             }}
           >
             <div className="space-y-1">
-              <h3 id="stt-confirm-title" className="text-xl font-extrabold">
-                {t.voice.confirmTitle}
+              <h3 id="stt-confirm-title" className="text-lg font-extrabold flex items-center gap-2">
+                <Volume2 className="h-5 w-5" style={{ color: "var(--ms-primary)" }} aria-hidden="true" />
+                <span>{t.voice.confirmTitle}</span>
               </h3>
-              <p className="text-sm" style={{ color: "var(--ms-ink-muted)" }}>
+              <p className="text-xs" style={{ color: "var(--ms-ink-muted)" }}>
                 {t.voice.confirmSubtitle} (Confidence: {Math.round(confirmState.confidence * 100)}%)
               </p>
             </div>
 
+            {/* Read-Back Spoken Audio */}
+            <div className="flex items-center justify-between rounded-xl border p-3" style={{ borderColor: "var(--ms-border)" }}>
+              <span className="text-xs font-bold" style={{ color: "var(--ms-ink-muted)" }}>
+                Hear what we understood:
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  speakTextWithMithi(
+                    editedText || confirmState.transcript,
+                    activeLang,
+                    1.0,
+                    "charvi"
+                  )
+                }
+                className="ms-btn-secondary tap-target inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold"
+              >
+                <Volume2 className="h-4 w-4" aria-hidden="true" />
+                <span>Play</span>
+              </button>
+            </div>
+
+            {/* Editable or Static Display */}
             {isEditingConfirm ? (
               <textarea
-                rows={3}
                 value={editedText}
                 onChange={(e) => setEditedText(e.target.value)}
-                className="w-full rounded-xl border-2 p-3 text-base"
+                rows={3}
+                className="w-full rounded-xl border p-3 text-base font-medium focus:outline-none"
                 style={{
                   backgroundColor: "var(--ms-surface-alt)",
-                  borderColor: "var(--ms-border)",
+                  borderColor: "var(--ms-primary)",
                   color: "var(--ms-ink)",
                 }}
               />
             ) : (
               <div
-                className="rounded-xl border-2 p-4 text-lg font-bold"
+                className="rounded-xl border p-3.5 text-base font-bold"
                 style={{
-                  backgroundColor: "var(--ms-prov-uncertain-bg)",
-                  borderColor: "var(--ms-prov-uncertain-border)",
+                  backgroundColor: "var(--ms-surface-alt)",
+                  borderColor: "var(--ms-border)",
                 }}
               >
-                &ldquo;{editedText}&rdquo;
+                &ldquo;{editedText || confirmState.transcript}&rdquo;
               </div>
             )}
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => speakTextWithMithi(editedText, activeLang)}
-                className="ms-btn-secondary tap-target inline-flex items-center gap-1.5 px-3 text-xs"
-              >
-                <Volume2 className="h-4 w-4" aria-hidden="true" />
-                <span>Hear what was heard</span>
-              </button>
-            </div>
-
-            <div className="grid gap-2.5 sm:grid-cols-3">
-              <button
-                type="button"
-                onClick={() => {
-                  const finalStr = editedText.trim();
-                  if (!finalStr) return;
-                  const audioId = confirmState.audioId;
-                  const confidence = confirmState.confidence;
-                  setConfirmState(null);
-                  onConfirmedTranscript(finalStr, {
-                    audioId,
-                    confidence,
-                    wasConfirmed: true,
-                  });
-                }}
-                className="ms-btn-primary tap-target inline-flex items-center justify-center gap-1.5 px-4 text-sm"
-              >
-                <Check className="h-4 w-4" aria-hidden="true" />
-                <span>{t.voice.yesAskThis}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsEditingConfirm((v) => !v)}
-                className="ms-btn-secondary tap-target inline-flex items-center justify-center gap-1.5 px-4 text-sm"
-              >
-                <Edit3 className="h-4 w-4" aria-hidden="true" />
-                <span>{t.voice.editText}</span>
-              </button>
-
+            {/* Actions */}
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => {
                   setConfirmState(null);
+                  setErrorMsg(null);
                   void startRecording();
                 }}
-                className="ms-btn-secondary tap-target inline-flex items-center justify-center gap-1.5 px-4 text-sm"
+                className="ms-btn-secondary tap-target inline-flex items-center gap-1.5 px-3.5 text-sm"
               >
                 <RotateCcw className="h-4 w-4" aria-hidden="true" />
                 <span>{t.voice.speakAgain}</span>
               </button>
-            </div>
 
-            <button
-              type="button"
-              onClick={() => setConfirmState(null)}
-              className="w-full text-center text-xs font-bold underline py-1"
-            >
-              {t.voice.cancel}
-            </button>
+              <button
+                type="button"
+                onClick={() => setIsEditingConfirm((prev) => !prev)}
+                className="ms-btn-secondary tap-target inline-flex items-center gap-1.5 px-3.5 text-sm"
+              >
+                <Edit3 className="h-4 w-4" aria-hidden="true" />
+                <span>{isEditingConfirm ? "Done Editing" : t.voice.editText}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const finalTxt = (editedText || confirmState.transcript).trim();
+                  if (finalTxt) {
+                    onConfirmedTranscript(finalTxt, {
+                      audioId: confirmState.audioId,
+                      confidence: isEditingConfirm ? 1.0 : confirmState.confidence,
+                      wasConfirmed: true,
+                    });
+                  }
+                  setConfirmState(null);
+                }}
+                className="ms-btn-primary tap-target inline-flex items-center gap-1.5 px-4 text-sm font-bold"
+              >
+                <Check className="h-4 w-4" aria-hidden="true" />
+                <span>{t.voice.yesAskThis}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
+
+      {/* Microphone Diagnostic & Audio Settings Modal */}
+      <MicrophoneDiagnosticModal
+        isOpen={showDiagnostics}
+        onClose={() => setShowDiagnostics(false)}
+        language={activeLang}
+        onApplyTranscript={(txt) => {
+          onConfirmedTranscript(txt, { confidence: 0.95, wasConfirmed: true });
+        }}
+      />
     </div>
   );
 }

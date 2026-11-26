@@ -2,12 +2,23 @@
 
 import React, { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Send, Sparkles, Stethoscope } from "lucide-react";
+import {
+  ExternalLink,
+  FlaskConical,
+  Globe,
+  Image as ImageIcon,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Stethoscope,
+  Zap,
+} from "lucide-react";
 import { PatientGate } from "@/app/patient/_components/PatientGate";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { EmergencyAlert, detectClientEmergencyKeywords } from "@/components/EmergencyAlert";
 import { ProvenanceCards } from "@/components/ProvenanceCards";
 import { TermLookupModal } from "@/components/TermLookupModal";
+import { VisualArtifactViewer } from "@/components/VisualArtifactViewer";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { useAccessibility } from "@/contexts/AccessibilityContext";
 import { SUPPORTED_LOCALES, useI18n, type SupportedLocale } from "@/i18n/I18nProvider";
@@ -41,6 +52,8 @@ function TalkWorkspace() {
 
   const [inputText, setInputText] = useState(initialQuery);
   const [sending, setSending] = useState(false);
+  const [researchMode, setResearchMode] = useState<"normal" | "web_research" | "deep_research">("normal");
+  const [requestVisual, setRequestVisual] = useState<boolean>(true);
   const [emergencyState, setEmergencyState] = useState<EmergencyGuidance | null>(null);
   const [activeTerm, setActiveTerm] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -127,6 +140,8 @@ function TalkWorkspace() {
         context_consultation_id: selectedConsultId || undefined,
         target_language: locale,
         depth_override: opts?.depthOverride,
+        research_mode: researchMode,
+        generate_visual: requestVisual,
       });
 
       setConversationId(res.conversation_id);
@@ -323,6 +338,56 @@ function TalkWorkspace() {
                       <p className="text-base font-medium leading-relaxed">{msg.message_text}</p>
                     )}
 
+                    {/* AI-Generated Visual Explanation */}
+                    {msg.visual_artifact && (
+                      <div className="pt-2">
+                        <VisualArtifactViewer visual={msg.visual_artifact} />
+                      </div>
+                    )}
+
+                    {/* Trusted Citations & Web Research Evidence */}
+                    {msg.citations && msg.citations.length > 0 && (
+                      <div className="rounded-xl border border-teal-200 dark:border-teal-800/60 bg-teal-50/50 dark:bg-teal-950/20 p-3 space-y-2 text-xs">
+                        <div className="flex items-center gap-1.5 font-bold text-teal-900 dark:text-teal-200">
+                          <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                          <span>Verified Citations &amp; Trusted Sources</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {msg.citations.map((c, cIdx) => (
+                            <a
+                              key={cIdx}
+                              href={c.source_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-teal-200 dark:border-teal-800 bg-white dark:bg-neutral-900 text-teal-950 dark:text-teal-100 hover:border-teal-400 dark:hover:border-teal-600 transition-colors shadow-xs"
+                            >
+                              <span className="font-semibold">{c.source_name}</span>
+                              <ExternalLink className="h-3 w-3 text-neutral-400" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Deep Research Subtopics */}
+                    {msg.research_meta?.subtopics && msg.research_meta.subtopics.length > 0 && (
+                      <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/60 dark:bg-neutral-900/40 p-2.5 text-xs space-y-1">
+                        <span className="font-bold text-neutral-600 dark:text-neutral-400">
+                          Explored Subtopics:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {msg.research_meta.subtopics.map((st, stIdx) => (
+                            <span
+                              key={stIdx}
+                              className="px-2 py-0.5 rounded-md bg-neutral-200/60 dark:bg-neutral-800 text-[11px] font-medium"
+                            >
+                              {st}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex flex-wrap items-center gap-2 pt-1">
                       <button
                         type="button"
@@ -375,6 +440,62 @@ function TalkWorkspace() {
 
       {/* Voice + Text Input Bar */}
       <section className="ms-card p-5 space-y-4">
+        {/* Research & Visual Intelligence Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl border-2 border-teal-200 dark:border-teal-800/60 bg-teal-50/50 dark:bg-teal-950/20">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-extrabold uppercase text-teal-900 dark:text-teal-200">Mode:</span>
+            <div className="inline-flex rounded-xl p-1 bg-neutral-200/70 dark:bg-neutral-800 gap-1 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setResearchMode("normal")}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors ${
+                  researchMode === "normal"
+                    ? "bg-white dark:bg-neutral-900 text-teal-700 dark:text-teal-300 shadow-sm font-bold"
+                    : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900"
+                }`}
+              >
+                <Zap className="h-3.5 w-3.5" />
+                <span>Normal</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setResearchMode("web_research")}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors ${
+                  researchMode === "web_research"
+                    ? "bg-white dark:bg-neutral-900 text-teal-700 dark:text-teal-300 shadow-sm font-bold"
+                    : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900"
+                }`}
+              >
+                <Globe className="h-3.5 w-3.5" />
+                <span>Web Research</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setResearchMode("deep_research")}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors ${
+                  researchMode === "deep_research"
+                    ? "bg-white dark:bg-neutral-900 text-teal-700 dark:text-teal-300 shadow-sm font-bold"
+                    : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900"
+                }`}
+              >
+                <FlaskConical className="h-3.5 w-3.5" />
+                <span>Deep Research</span>
+              </button>
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 dark:text-neutral-200 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={requestVisual}
+              onChange={(e) => setRequestVisual(e.target.checked)}
+              className="rounded text-teal-600 focus:ring-teal-500 h-4 w-4"
+            />
+            <ImageIcon className="h-4 w-4 text-teal-600" />
+            <span>AI Visual Diagrams</span>
+          </label>
+        </div>
+
         <VoiceInputButton
           language={locale}
           disabled={sending}

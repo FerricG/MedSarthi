@@ -92,6 +92,8 @@ class ChatSendRequest(BaseModel):
     context_document_id: str | None = None
     target_language: SupportedLang | None = None
     depth_override: DepthLevel | None = None
+    research_mode: Literal["normal", "web_research", "deep_research"] = "normal"
+    generate_visual: bool | None = None
 
 
 # ---------------------------------------------------------------------------

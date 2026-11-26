@@ -433,6 +433,35 @@ export interface MedicineExplanationResult {
   visual_diagrams?: CuratedDiagram[];
 }
 
+export interface VisualArtifactDTO {
+  visual_id: string;
+  success: boolean;
+  title: string;
+  description?: string;
+  renderer: "matplotlib" | "mermaid" | "svg" | "networkx" | string;
+  output_format?: "png" | "svg" | "mermaid" | string;
+  visual_url?: string | null;
+  script?: string;
+  latency_ms?: number;
+  error_message?: string | null;
+}
+
+export interface ResearchMetaDTO {
+  research_mode?: "normal" | "web_research" | "deep_research";
+  citations?: Array<{
+    title?: string;
+    source_name?: string;
+    domain?: string;
+    source_url: string;
+    snippet?: string;
+    trust_score?: number;
+    category?: string;
+  }>;
+  evidence_text?: string;
+  subtopics?: string[];
+  has_research?: boolean;
+}
+
 export interface ChatMessageDTO {
   id: string;
   conversation_id: string;
@@ -445,6 +474,8 @@ export interface ChatMessageDTO {
   provenance_blocks?: ProvenancePayload | null;
   context_refs?: Array<{ ref_type: string; ref_id?: string; excerpt?: string }>;
   citations?: CitationRef[];
+  visual_artifact?: VisualArtifactDTO | null;
+  research_meta?: ResearchMetaDTO | null;
   emergency_flag_triggered?: boolean;
   emergency_guidance?: EmergencyGuidance | null;
   integrity_status?: string;
@@ -470,6 +501,14 @@ export interface SttResponse {
   requires_confirmation: boolean;
   alternative_interpretations?: string[];
   provider?: string;
+  message?: string;
+  metrics?: {
+    is_silent?: boolean;
+    rms?: number;
+    peak?: number;
+    db?: number;
+    sample_rate?: number;
+  };
 }
 
 export interface TtsResponse {
@@ -1172,6 +1211,8 @@ export const api = {
     context_document_id?: string;
     target_language?: SupportedLanguage;
     depth_override?: ExplanationDepth;
+    research_mode?: "normal" | "web_research" | "deep_research";
+    generate_visual?: boolean;
   }) =>
     apiRequest<{
       conversation_id: string;

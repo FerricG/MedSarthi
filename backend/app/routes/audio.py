@@ -368,10 +368,10 @@ async def speech_to_text_ephemeral(
     consent_recorded: str = Form("true"),
     language_hint: str | None = Form(default=None),
     synthetic_demo_transcript: str | None = Form(default=None),
-    current_user: User = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_optional_bearer),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Transcribe a voice query and immediately purge any raw audio blob (confidence <0.78 -> confirm)."""
+    """Transcribe a voice query with guest/unauthenticated support and immediately purge raw audio blob."""
     if not _parse_bool_form(consent_recorded):
         raise AppError(
             400,
@@ -399,8 +399,18 @@ async def speech_to_text_ephemeral(
         if temp_blob.exists():
             temp_blob.unlink()
 
+    current_user: User | None = None
+    if credentials and credentials.credentials:
+        try:
+            tok_payload = decode_access_token(credentials.credentials)
+            uid = tok_payload.get("sub")
+            if uid:
+                current_user = await db.get(User, uid)
+        except Exception:
+            current_user = None
+
     audio_id: str | None = None
-    if current_user.role == "patient":
+    if current_user and current_user.role == "patient":
         profile = await get_patient_profile_for_user(db, current_user, required=False)
         if profile:
             now = utcnow()
@@ -436,6 +446,8 @@ async def speech_to_text_ephemeral(
             "requires_confirmation": bool(stt_res.get("requires_confirmation", True)),
             "alternative_interpretations": [],
             "provider": stt_res.get("provider"),
+            "message": stt_res.get("message"),
+            "metrics": stt_res.get("metrics"),
         }
     )
 

@@ -24,6 +24,7 @@ from app.routes import (
     knowledge,
     patients,
     remote_upload,
+    visuals,
 )
 
 settings = get_settings()
@@ -136,6 +137,7 @@ def create_app() -> FastAPI:
     app.include_router(doctor.router, prefix="/api")
     app.include_router(knowledge.router, prefix="/api")
     app.include_router(remote_upload.router, prefix="/api")
+    app.include_router(visuals.router, prefix="/api")
     return app
 
 

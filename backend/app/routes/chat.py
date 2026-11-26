@@ -64,6 +64,8 @@ def _serialize_message(
     citations: list[dict[str, Any]] | None = None,
     emergency_guidance: dict[str, Any] | None = None,
     suggested_followups: list[str] | None = None,
+    visual_artifact: dict[str, Any] | None = None,
+    research_meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     resolved_citations = (
         citations
@@ -82,6 +84,14 @@ def _serialize_message(
                 {"label": "Ambulance Services", "number": "108"},
             ],
         }
+    resolved_visual = visual_artifact
+    if resolved_visual is None and isinstance(msg.provenance_blocks, dict):
+        resolved_visual = msg.provenance_blocks.get("visual_artifact")
+
+    resolved_research = research_meta
+    if resolved_research is None and isinstance(msg.provenance_blocks, dict):
+        resolved_research = msg.provenance_blocks.get("research_meta")
+
     return {
         "id": msg.id,
         "conversation_id": msg.conversation_id,
@@ -94,6 +104,8 @@ def _serialize_message(
         "provenance_blocks": msg.provenance_blocks,
         "context_refs": msg.context_refs or [],
         "citations": resolved_citations,
+        "visual_artifact": resolved_visual,
+        "research_meta": resolved_research,
         "emergency_flag_triggered": msg.emergency_flag_triggered,
         "emergency_guidance": resolved_emerg,
         "integrity_status": msg.integrity_status,
@@ -250,6 +262,8 @@ async def send_chat_message(
         input_modality=payload.input_modality,
         stt_confirmed=payload.stt_confirmed,
         target_language=payload.target_language,
+        research_mode=payload.research_mode,
+        generate_visual=payload.generate_visual,
     )
 
     provenance = res["provenance"]
@@ -330,6 +344,8 @@ async def send_chat_message(
                 citations=res.get("citations") or [],
                 emergency_guidance=emerg_guidance,
                 suggested_followups=res.get("suggested_followups") or [],
+                visual_artifact=res.get("visual_artifact"),
+                research_meta=res.get("research_meta"),
             ),
         }
     )

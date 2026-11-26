@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.ai.base import LLMTaskRequest, PersonalizationContext, normalize_depth, normalize_language
@@ -17,6 +18,9 @@ from app.services.ai.explanation_service import (
 from app.services.ai.prompts import build_chat_qa_prompt
 from app.services.ai.registry import ProviderRegistry, get_provider_registry
 from app.services.knowledge.retriever import KnowledgeRetriever, knowledge_retriever
+from app.services.research.research_service import trusted_research_service
+from app.services.visual.visual_engine import visual_intelligence_engine
+from app.services.visual.visual_templates import get_template_for_query
 
 _DEPTH_ORDER = ("very_simple", "simple", "detailed", "deep_dive")
 
@@ -95,6 +99,8 @@ class ChatService:
         input_modality: str = "text",
         stt_confirmed: bool = True,
         target_language: str | None = None,
+        research_mode: str = "normal",
+        generate_visual: bool | None = None,
     ) -> dict[str, Any]:
         """Process a patient Q&A turn strictly scoped to shared clinical records & verified KB."""
         p = prefs or PersonalizationContext()
@@ -249,6 +255,32 @@ class ChatService:
                 }
             )
 
+        # Step 5b: Trusted Web Research (if requested)
+        research_meta: dict[str, Any] | None = None
+        research_context: list[dict[str, Any]] | None = None
+        if research_mode in ("web_research", "deep_research"):
+            try:
+                research_res = await trusted_research_service.execute_research(
+                    query=message_text,
+                    mode=research_mode,
+                    language=p.preferred_language,
+                )
+                research_meta = research_res
+                research_context = research_res.get("citations", [])
+            except Exception as res_err:
+                research_meta = {"error": str(res_err), "citations": []}
+                research_context = []
+
+        # Determine whether visual explanation would enhance the answer
+        q_lower = message_text.lower()
+        visual_keywords = (
+            "diagram", "visual", "draw", "picture", "anatomy", "chart", "graph",
+            "heart", "lung", "brain", "kidney", "eye", "cell", "dna", "circulat",
+            "mechanism", "flowchart", "physics", "optic", "ray", "circuit",
+            "wave", "differentiat", "integrat", "structure", "pathway", "blood pressure"
+        )
+        suggest_visual = bool(generate_visual) or any(kw in q_lower for kw in visual_keywords)
+
         # Scrub PII before building prompt
         scrubbed_question = _safe_scrub_pii(message_text, p.patient_name)
         scrubbed_consult = None
@@ -268,6 +300,8 @@ class ChatService:
             kb_entries=kb_entries,
             intent_classification=intent_info,
             prefs=p,
+            research_context=research_context,
+            suggest_visual=suggest_visual,
         )
         req = LLMTaskRequest(
             task_type="chat",
@@ -283,12 +317,31 @@ class ChatService:
                 "prefs": p.model_dump(),
                 "target_language": p.preferred_language,
                 "target_depth": effective_depth,
+                "research_mode": research_mode,
+                "suggest_visual": suggest_visual,
             },
         )
         llm_resp = await self.registry.generate_json(req)
         provenance = _normalize_provenance_shape(llm_resp.data, p.preferred_language, effective_depth)
 
-        # Step 6: Deterministic Integrity & Guardrail Check
+        # Step 6: Render Visual Artifact if indicated or requested
+        visual_artifact: dict[str, Any] | None = None
+        visual_spec = llm_resp.data.get("visual_spec")
+        if not visual_spec and (generate_visual is True or (suggest_visual and any(kw in q_lower for kw in ("diagram", "visual", "draw", "show me", "picture")))):
+            visual_spec = get_template_for_query(message_text)
+
+        if visual_spec and isinstance(visual_spec, dict) and visual_spec.get("script"):
+            try:
+                visual_artifact = await visual_intelligence_engine.render_visual(visual_spec)
+            except Exception as v_err:
+                visual_artifact = {
+                    "success": False,
+                    "title": visual_spec.get("title", "Visual Explanation"),
+                    "error_message": str(v_err),
+                    "visual_url": None,
+                }
+
+        # Step 7: Deterministic Integrity & Guardrail Check
         source_text = (
             consult_ctx.get("original_doctor_input", "") if consult_ctx else ""
         ) or (doc_ctx.get("ocr_raw_text", "") if doc_ctx else "")
@@ -308,21 +361,40 @@ class ChatService:
         guardrail = _safe_validate_provenance(
             {"provenance": provenance, "safety": {"disclaimer": DEFAULT_DISCLAIMER}}
         )
+
         citations = [
-            {"source_name": entry["source_name"], "source_url": entry["source_url"]}
+            {"source_name": entry["source_name"], "source_url": entry["source_url"], "domain": "Clinical KB", "trusted": True}
             for entry in kb_entries
         ]
+        if research_context:
+            for s in research_context:
+                url = s.get("source_url") or s.get("url") or ""
+                if url:
+                    citations.append({
+                        "source_name": s.get("title") or s.get("source_name") or s.get("domain", "Trusted Research Source"),
+                        "source_url": url,
+                        "domain": s.get("domain", ""),
+                        "trusted": s.get("trusted", True),
+                    })
+
         suggested_followups = llm_resp.data.get("suggested_followups") or [
             "Explain it more simply",
             "Why did this happen?",
             "Listen to this answer",
         ]
 
+        if visual_artifact:
+            provenance["visual_artifact"] = visual_artifact
+        if research_meta:
+            provenance["research_meta"] = research_meta
+
         return {
             "requires_stt_confirmation": False,
             "provenance": provenance,
             "context_refs": context_refs,
             "citations": citations,
+            "visual_artifact": visual_artifact,
+            "research_meta": research_meta,
             "emergency_flag": False,
             "emergency_guidance": None,
             "intent_classification": intent_info,

@@ -419,28 +419,56 @@ def build_chat_qa_prompt(
     kb_entries: list[dict[str, Any]],
     intent_classification: dict[str, Any],
     prefs: PersonalizationContext,
+    research_context: list[dict[str, Any]] | None = None,
+    suggest_visual: bool = False,
 ) -> tuple[str, str]:
-    """Template (g): Consultation-Scoped Q&A Chat prompt."""
+    """Template (g): Consultation-Scoped Q&A Chat prompt with Research & Visual Intelligence."""
+    visual_instruction = ""
+    if suggest_visual:
+        visual_instruction = (
+            "\n6. VISUAL INTELLIGENCE SPECIFICATION:\n"
+            "If a visual or diagram will clarify the explanation (e.g. human anatomy, organ function, medical mechanism, "
+            "blood flow, physics, math, biological pathway, or diagnostic flow), provide a valid `visual_spec` key in your JSON:\n"
+            '{\n'
+            '  "visual_spec": {\n'
+            '    "type": "anatomy" | "medical_mechanism" | "physics" | "math" | "flowchart" | "process" | "comparison",\n'
+            '    "title": "Clear descriptive title",\n'
+            '    "description": "Short explanation of what the visual depicts",\n'
+            '    "renderer": "matplotlib" | "mermaid" | "svg",\n'
+            '    "script": "Executable script. For matplotlib: complete Python code using matplotlib.pyplot as plt, numpy as np, saving with plt.savefig(\'output.png\', dpi=200, bbox_inches=\'tight\'). For mermaid: mermaid flowchart or sequence string. For svg: raw <svg>...</svg> string.",\n'
+            '    "output_format": "png" | "svg" | "mermaid"\n'
+            '  }\n'
+            '}\n'
+            "Always label structures clearly, use appropriate colors, and ensure anatomical or scientific correctness.\n"
+        )
+
     system_prompt = (
         "You are MedSarthi's consultation-scoped patient Q&A helper (NOT an open diagnostic chatbot).\n"
         "RULES:\n"
-        "1. Answer ONLY using the shared consultation/document context and verified KB citations provided below.\n"
+        "1. Answer using the shared consultation/document context, verified KB citations, and trusted research evidence provided below.\n"
         "2. If asked whether the patient has another condition not in the doctor's note (e.g., pneumonia vs URI), "
-        "explicitly state what the doctor's note DOES and DOES NOT say, explain the general difference using verified KB, "
+        "explicitly state what the doctor's note DOES and DOES NOT say, explain the general difference using verified KB/research, "
         "and advise consulting the doctor for any evaluation.\n"
         "3. If intent is diagnosis_seeking, prescription_request, dose_change_request, or stop_or_substitute_request, "
         "calmly refuse autonomous action, keep original instructions unchanged, and refer to the prescribing doctor.\n"
         "4. If user asks to 'explain simpler', simplify the prior answer while keeping every clinical fact intact.\n"
         "5. Return 4-category provenance JSON (`doctor_provided`, `ai_simplified`, `general_education`, `uncertain_or_missing`) "
         "plus `suggested_followups` (list of strings)."
+        f"{visual_instruction}"
     )
+
+    research_block = ""
+    if research_context:
+        research_block = f"\n\nTRUSTED WEB RESEARCH EVIDENCE:\n{json.dumps(research_context, ensure_ascii=False)}"
+
     user_prompt = (
-        f"[Prompt: chat_v1 | Intent: {intent_classification.get('intent', 'allowed_communication')}]\n"
+        f"[Prompt: chat_v1 | Intent: {intent_classification.get('intent', 'allowed_communication')} | SuggestVisual: {suggest_visual}]\n"
         f"PERSONALIZATION:\n{_personalization_block(prefs)}\n\n"
         f"USER QUESTION:\n{user_question}\n\n"
         f"RECENT HISTORY:\n{json.dumps(conversation_history[-6:], ensure_ascii=False)}\n\n"
         f"CONSULTATION CONTEXT:\n{json.dumps(consultation_context or {}, ensure_ascii=False)}\n\n"
         f"DOCUMENT CONTEXT:\n{json.dumps(document_context or {}, ensure_ascii=False)}\n\n"
         f"VERIFIED KB ENTRIES:\n{_kb_context_block(kb_entries)}"
+        f"{research_block}"
     )
     return system_prompt, user_prompt

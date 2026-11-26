@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import logging
 import re
 import time
 from typing import Any
@@ -12,6 +13,8 @@ from app.core.config import Settings, get_settings
 from app.core.exceptions import AppError
 from app.services.ai.base import LLMProvider, LLMResponse, LLMTaskRequest
 from app.services.ai.prompts import canonicalize_explain_more_trigger
+
+logger = logging.getLogger(__name__)
 
 DEPRECATED_GEMINI_MODELS = {"gemini-2.0-flash", "gemini-2.5-flash"}
 
@@ -68,15 +71,42 @@ class GroqLLMProvider(LLMProvider):
                 {"role": "user", "content": request.user_prompt},
             ],
         }
-        async with httpx.AsyncClient(timeout=25.0) as client:
-            resp = await client.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers=headers,
-                json=body,
-            )
-        if resp.status_code >= 400:
-            raise AppError(503, "PROVIDER_UNAVAILABLE", f"Groq API error ({resp.status_code}).")
-        data = resp.json()
+        models_to_try = [self.model_name]
+        for fallback_m in ("openai/gpt-oss-120b", "openai/gpt-oss-20b"):
+            if fallback_m not in models_to_try:
+                models_to_try.append(fallback_m)
+
+        last_resp = None
+        for current_model in models_to_try:
+            body["model"] = current_model
+            async with httpx.AsyncClient(timeout=25.0) as client:
+                resp = await client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers=headers,
+                    json=body,
+                )
+            last_resp = resp
+            if resp.status_code == 200:
+                self.model_name = current_model
+                break
+            logger.warning("Groq API error on model '%s' (%s): %s", current_model, resp.status_code, resp.text)
+            if resp.status_code not in (404, 429, 503):
+                # If not a model_not_found, rate_limit, or service_unavailable error, don't keep cycling
+                break
+
+        if last_resp is None or last_resp.status_code >= 400:
+            if self.settings.SYNTHETIC_PROTOTYPE_MODE:
+                logger.warning(
+                    "Groq API unavailable (%s). Gracefully falling back to DemoClinicalLLMProvider in prototype mode.",
+                    last_resp.status_code if last_resp else "no response",
+                )
+                return await DemoClinicalLLMProvider().generate_json(request)
+
+            err_code = last_resp.status_code if last_resp else 503
+            err_msg = last_resp.text if last_resp else "No response"
+            raise AppError(503, "PROVIDER_UNAVAILABLE", f"Groq API error ({err_code}): {err_msg[:200]}")
+
+        data = last_resp.json()
         content = data["choices"][0]["message"]["content"]
         usage = data.get("usage", {})
         return LLMResponse(
