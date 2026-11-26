@@ -1,0 +1,69 @@
+{
+  "appName": "MedSarthi",
+  "tagline": "Aapke doctor ki salah ki aasaan, shaant aur personalized samajh",
+  "safety": {
+    "prototypeBannerTitle": "Educational Prototype — Sirf Synthetic Data",
+    "prototypeBannerBody": "MedSarthi sirf synthetic data par bana ek educational prototype hai. Yeh clinically validated NAHI hai, diagnosis ya prescription nahi deta, aur doctor ki jagah nahi le sakta.",
+    "prototypeFooter": "Educational Prototype • Sirf Synthetic Data • Real Medical Care ke liye Validated Nahi • Har medical faisle ke liye apne doctor se zaroor poochein.",
+    "emergencyNote": "Agar tez seene mein dard, saans lene mein dikkat, achanak kamzori ya zyada bleeding ho, to turant 112 / 108 par call karein ya emergency hospital jayein."
+  },
+  "languages": {
+    "label": "Bhasha",
+    "en": "English",
+    "hi": "हिन्दी",
+    "hi-Latn": "Hinglish"
+  },
+  "accessibility": {
+    "title": "Padhne aur Dekhne ki Suvidha",
+    "highContrast": "High Contrast",
+    "highContrastOn": "High Contrast: ON",
+    "highContrastOff": "High Contrast: OFF",
+    "fontSize": "Font Size",
+    "decreaseFont": "Chhota karein",
+    "increaseFont": "Bada karein",
+    "resetFont": "Recommended par reset karein",
+    "audioSpeed": "Audio Speed",
+    "readingComfort": "Padhne ki Suvidha",
+    "comfortOptions": {
+      "very_simple": "Mujhe bilkul simple bhasha mein samjhayein",
+      "simple": "Main padh sakta hoon, par medical shabd mushkil lagte hain",
+      "comfortable": "Main detailed jankari aaram se padh sakta hoon",
+      "adaptive": "Har jawab kitna detailed ho, yeh mujhe chunne dein"
+    }
+  },
+  "provenance": {
+    "doctorProvided": "Doctor ki Di Hui Jankari",
+    "aiSimplified": "AI dwara Aasaan Samajh",
+    "generalEducation": "General Medical Jankari",
+    "uncertainOrMissing": "Uncertain ya Adhoori Jankari"
+  },
+  "patientHome": {
+    "greeting": "Aaj MedSarthi aapki kya madad kar sakta hai?",
+    "actions": {
+      "instructions": "Mere doctor ki salah samjhein",
+      "report": "Meri report samjhein",
+      "medicine": "Meri dawa samjhein",
+      "talk": "MedSarthi se baat karein",
+      "listen": "Meri explanation sunein",
+      "history": "Mere pichhle consultations"
+    }
+  },
+  "auth": {
+    "signInTitle": "MedSarthi mein Sign In karein",
+    "demoSectionTitle": "1-Click Synthetic Demo Mode",
+    "demoPatientBtn": "Demo Patient (Ramesh Sharma, Age 64)",
+    "demoDoctorBtn": "Demo Doctor (Dr. Priya Mehta)",
+    "emailOrPhone": "Email ya Phone",
+    "password": "Password",
+    "signInBtn": "Sign In karein",
+    "signingIn": "Sign in ho raha hai...",
+    "signOut": "Sign Out",
+    "signedInAs": "Signed in as",
+    "rolePatient": "Patient",
+    "roleDoctor": "Doctor",
+    "backendStatus": "Backend Status",
+    "statusChecking": "Check ho raha hai...",
+    "statusOnline": "Connected",
+    "statusOffline": "Backend offline (port 8000 par uvicorn start karein)"
+  }
+}

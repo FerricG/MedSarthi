@@ -1,0 +1,15 @@
+{
+  "name": "medsarthi-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MedSarthi — Multilingual, accessibility-first AI healthcare communication prototype (educational prototype using synthetic data only).",
+  "scripts": {
+    "dev": "powershell -ExecutionPolicy Bypass -File ./scripts/dev.ps1",
+    "dev:frontend": "npm.cmd --prefix frontend run dev",
+    "build:frontend": "npm.cmd --prefix frontend run build",
+    "typecheck": "npm.cmd --prefix frontend run typecheck",
+    "lint:frontend": "npm.cmd --prefix frontend run lint",
+    "test:backend": ".\\backend\\.venv\\Scripts\\python.exe -m pytest backend/tests -v",
+    "seed": ".\\backend\\.venv\\Scripts\\python.exe -m app.seeds.seed_data"
+  }
+}

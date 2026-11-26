@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 440" role="img" aria-labelledby="resp-title resp-desc">
+  <title id="resp-title">Respiratory Airways Educational Diagram</title>
+  <desc id="resp-desc">Educational diagram showing the nose and upper throat, windpipe, bronchial air tubes, and left and right lungs.</desc>
+  <rect width="640" height="440" rx="20" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2" />
+
+  <!-- Educational Label Header -->
+  <text x="24" y="34" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="700" fill="#0F172A">
+    Respiratory Airways (Educational Overview)
+  </text>
+  <text x="24" y="54" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#475569">
+    Upper airway (nose &amp; throat) vs. lower airways (lungs)
+  </text>
+
+  <!-- Upper Airway Zone Highlight -->
+  <rect x="210" y="72" width="220" height="92" rx="14" fill="#CCFBF1" stroke="#0F766E" stroke-width="1.5" stroke-dasharray="5 4" />
+
+  <!-- Nose & Pharynx (Upper Throat) -->
+  <path d="M295 88 C275 88 265 102 268 118 C270 128 286 132 296 132 L296 158" fill="none" stroke="#0F766E" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M320 92 L320 158" fill="none" stroke="#0F766E" stroke-width="14" stroke-linecap="round" />
+
+  <!-- Trachea (Windpipe) with cartilage rings -->
+  <rect x="308" y="158" width="24" height="86" rx="8" fill="#E0F2FE" stroke="#0369A1" stroke-width="2.5" />
+  <line x1="311" y1="174" x2="329" y2="174" stroke="#0369A1" stroke-width="2" />
+  <line x1="311" y1="190" x2="329" y2="190" stroke="#0369A1" stroke-width="2" />
+  <line x1="311" y1="206" x2="329" y2="206" stroke="#0369A1" stroke-width="2" />
+  <line x1="311" y1="222" x2="329" y2="222" stroke="#0369A1" stroke-width="2" />
+
+  <!-- Left & Right Lungs -->
+  <path d="M296 226 C248 228 202 272 198 338 C196 372 222 392 258 388 C282 385 298 368 302 342 L302 248 Z" fill="#E0F2FE" stroke="#0284C7" stroke-width="3" />
+  <path d="M344 226 C392 228 438 272 442 338 C444 372 418 392 382 388 C358 385 342 368 338 342 L338 248 Z" fill="#E0F2FE" stroke="#0284C7" stroke-width="3" />
+
+  <!-- Bronchi Branches -->
+  <path d="M320 242 L268 292 M268 292 L240 318 M268 292 L272 332" fill="none" stroke="#0369A1" stroke-width="6" stroke-linecap="round" />
+  <path d="M320 242 L372 292 M372 292 L400 318 M372 292 L368 332" fill="none" stroke="#0369A1" stroke-width="6" stroke-linecap="round" />
+
+  <!-- Airflow Arrows -->
+  <path d="M320 100 L320 144" stroke="#0F172A" stroke-width="2" stroke-dasharray="3 3" />
+  <polygon points="320,150 315,140 325,140" fill="#0F172A" />
+
+  <!-- Callout Labels -->
+  <g font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="#0F172A">
+    <!-- Nose & Upper Throat -->
+    <line x1="270" y1="114" x2="188" y2="114" stroke="#0F766E" stroke-width="2" />
+    <circle cx="270" cy="114" r="4" fill="#0F766E" />
+    <rect x="24" y="96" width="164" height="36" rx="8" fill="#FFFFFF" stroke="#0F766E" stroke-width="1.5" />
+    <text x="34" y="119">Nose &amp; Upper Throat</text>
+
+    <!-- Windpipe -->
+    <line x1="332" y1="196" x2="452" y2="196" stroke="#0369A1" stroke-width="2" />
+    <circle cx="332" cy="196" r="4" fill="#0369A1" />
+    <rect x="452" y="178" width="164" height="36" rx="8" fill="#FFFFFF" stroke="#0369A1" stroke-width="1.5" />
+    <text x="462" y="201">Windpipe (Trachea)</text>
+
+    <!-- Air Tubes -->
+    <line x1="256" y1="302" x2="176" y2="302" stroke="#0369A1" stroke-width="2" />
+    <circle cx="256" cy="302" r="4" fill="#0369A1" />
+    <rect x="24" y="284" width="152" height="36" rx="8" fill="#FFFFFF" stroke="#0369A1" stroke-width="1.5" />
+    <text x="34" y="307">Air Tubes (Bronchi)</text>
+
+    <!-- Lungs -->
+    <line x1="424" y1="322" x2="466" y2="322" stroke="#0284C7" stroke-width="2" />
+    <circle cx="424" cy="322" r="4" fill="#0284C7" />
+    <rect x="466" y="300" width="150" height="44" rx="8" fill="#FFFFFF" stroke="#0284C7" stroke-width="1.5" />
+    <text x="476" y="320">Lungs</text>
+    <text x="476" y="336" font-size="11" font-weight="400" fill="#475569">Tiny air sacs (alveoli)</text>
+  </g>
+
+  <text x="24" y="424" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#64748B">
+    Educational illustration only — not diagnostic medical imagery.
+  </text>
+</svg>

@@ -1,0 +1,113 @@
+{
+  "prototype_notice": "Educational anatomical and medication pathway illustrations for patient comprehension only. Not diagnostic imagery.",
+  "diagrams": [
+    {
+      "id": "respiratory_airways",
+      "svg_path": "/diagrams/respiratory_airways.svg",
+      "body_system": "respiratory",
+      "related_terms": ["upper-respiratory-infection", "pneumonia", "fever"],
+      "titles": {
+        "en": "How Air Moves Through Your Airways",
+        "hi": "हवा आपकी श्वास नली से कैसे जाती है",
+        "hi-Latn": "Hawa aapki saans ki nali se kaise jaati hai"
+      },
+      "descriptions": {
+        "en": "Shows the nose, upper throat, windpipe, and lungs so you can see where upper airway colds differ from deeper lung infections.",
+        "hi": "यह चित्र नाक, ऊपरी गला, श्वास नली और फेफड़ों को दिखाता है ताकि आप समझ सकें कि सामान्य जुकाम और फेफड़ों के संक्रमण में क्या अंतर है।",
+        "hi-Latn": "Yeh chitra naak, oopari gala, saans ki nali aur phephdon ko dikhata hai taaki aap samajh sakein ki normal zukam aur lung infection mein kya farq hai."
+      },
+      "callouts": {
+        "en": [
+          { "key": "nose_throat", "label": "Nose & Upper Throat (Upper Airway)", "depth": "very_simple" },
+          { "key": "windpipe", "label": "Windpipe (Trachea)", "depth": "very_simple" },
+          { "key": "bronchi", "label": "Air Tubes (Bronchi)", "depth": "detailed" },
+          { "key": "lungs", "label": "Lungs (Air Sacs / Alveoli)", "depth": "very_simple" }
+        ],
+        "hi": [
+          { "key": "nose_throat", "label": "नाक और ऊपरी गला", "depth": "very_simple" },
+          { "key": "windpipe", "label": "श्वास नली (ट्रेकिया)", "depth": "very_simple" },
+          { "key": "bronchi", "label": "वायु नलिकाएं (ब्रॉन्काई)", "depth": "detailed" },
+          { "key": "lungs", "label": "फेफड़े (हवा की थैलियां)", "depth": "very_simple" }
+        ],
+        "hi-Latn": [
+          { "key": "nose_throat", "label": "Naak aur Oopari Gala (Upper Airway)", "depth": "very_simple" },
+          { "key": "windpipe", "label": "Saans ki Nali (Windpipe)", "depth": "very_simple" },
+          { "key": "bronchi", "label": "Hawa ki Chhoti Naliyan (Bronchi)", "depth": "detailed" },
+          { "key": "lungs", "label": "Phephde (Lungs)", "depth": "very_simple" }
+        ]
+      }
+    },
+    {
+      "id": "digestive_med_pathway",
+      "svg_path": "/diagrams/digestive_med_pathway.svg",
+      "body_system": "digestive",
+      "related_terms": ["paracetamol", "metformin", "azithromycin", "amoxicillin", "cefixime"],
+      "titles": {
+        "en": "How Oral Medicines Travel Through Your Body",
+        "hi": "खाने की दवा शरीर में कैसे काम करती है",
+        "hi-Latn": "Khaane ki dawa shareer mein kaise kaam karti hai"
+      },
+      "descriptions": {
+        "en": "Illustrates how a swallowed tablet passes from the mouth and food pipe into the stomach and small intestine before entering the bloodstream.",
+        "hi": "यह दिखाता है कि निगली गई गोली मुंह और भोजन नली से होकर पेट और छोटी आंत में जाती है और फिर खून में मिलती है।",
+        "hi-Latn": "Yeh dikhata hai ki nigli gayi goli munh aur food pipe se hokar pet aur chhoti aant mein jaati hai aur phir khoon mein milti hai."
+      },
+      "callouts": {
+        "en": [
+          { "key": "food_pipe", "label": "Food Pipe (Esophagus) — Take with water", "depth": "very_simple" },
+          { "key": "stomach", "label": "Stomach — Food timing affects comfort", "depth": "very_simple" },
+          { "key": "small_intestine", "label": "Small Intestine — Medicine absorbed here", "depth": "detailed" },
+          { "key": "bloodstream", "label": "Bloodstream — Carries medicine where needed", "depth": "very_simple" }
+        ],
+        "hi": [
+          { "key": "food_pipe", "label": "भोजन नली — पानी के साथ निगलें", "depth": "very_simple" },
+          { "key": "stomach", "label": "पेट — खाने से पहले या बाद का समय मायने रखता है", "depth": "very_simple" },
+          { "key": "small_intestine", "label": "छोटी आंत — दवा यहाँ शरीर में सोखी जाती है", "depth": "detailed" },
+          { "key": "bloodstream", "label": "रक्त प्रवाह — दवा को शरीर के हिस्सों तक पहुँचाता है", "depth": "very_simple" }
+        ],
+        "hi-Latn": [
+          { "key": "food_pipe", "label": "Food Pipe — Paani ke saath lein", "depth": "very_simple" },
+          { "key": "stomach", "label": "Pet (Stomach) — Khaane ke pehle ya baad ka time zaroori hai", "depth": "very_simple" },
+          { "key": "small_intestine", "label": "Chhoti Aant — Dawa yahan absorb hoti hai", "depth": "detailed" },
+          { "key": "bloodstream", "label": "Khoon ka Bahav — Dawa ko zaroori jagah pahunchata hai", "depth": "very_simple" }
+        ]
+      }
+    },
+    {
+      "id": "heart_circulation_bp",
+      "svg_path": "/diagrams/heart_circulation_bp.svg",
+      "body_system": "cardiovascular",
+      "related_terms": ["hypertension", "amlodipine", "creatinine", "hba1c"],
+      "titles": {
+        "en": "How Your Heart Pumps Blood & Blood Pressure",
+        "hi": "दिल खून कैसे पंप करता है और ब्लड प्रेशर क्या है",
+        "hi-Latn": "Dil khoon kaise pump karta hai aur blood pressure kya hai"
+      },
+      "descriptions": {
+        "en": "Shows the heart pumping blood through arteries and veins, explaining what systolic (top) and diastolic (bottom) blood pressure numbers represent.",
+        "hi": "यह दिखाता है कि दिल धमनियों के जरिए खून कैसे पंप करता है और ऊपर व नीचे के ब्लड प्रेशर नंबर का क्या मतलब है।",
+        "hi-Latn": "Yeh dikhata hai ki dil khoon ki naliyon se khoon kaise pump karta hai aur upar aur neeche ke BP numbers ka kya matlab hai."
+      },
+      "callouts": {
+        "en": [
+          { "key": "heart_pump", "label": "Heart — Pumps blood steadily", "depth": "very_simple" },
+          { "key": "arteries", "label": "Arteries — Carry blood outward (BP measured here)", "depth": "very_simple" },
+          { "key": "bp_numbers", "label": "Top (Systolic) / Bottom (Diastolic) Pressure", "depth": "detailed" },
+          { "key": "veins", "label": "Veins — Return blood to the heart", "depth": "detailed" }
+        ],
+        "hi": [
+          { "key": "heart_pump", "label": "दिल — शरीर में लगातार खून पंप करता है", "depth": "very_simple" },
+          { "key": "arteries", "label": "धमनियाँ — दिल से खून बाहर ले जाती हैं", "depth": "very_simple" },
+          { "key": "bp_numbers", "label": "ऊपर का दबाव (सिस्टोलिक) / नीचे का दबाव (डायस्टोलिक)", "depth": "detailed" },
+          { "key": "veins", "label": "शिराएँ — खून को वापस दिल तक लाती हैं", "depth": "detailed" }
+        ],
+        "hi-Latn": [
+          { "key": "heart_pump", "label": "Dil (Heart) — Lagatar khoon pump karta hai", "depth": "very_simple" },
+          { "key": "arteries", "label": "Arteries — Dil se khoon baahar le jaati hain", "depth": "very_simple" },
+          { "key": "bp_numbers", "label": "Upar ka BP (Systolic) / Neeche ka BP (Diastolic)", "depth": "detailed" },
+          { "key": "veins", "label": "Veins — Khoon ko wapas dil mein laati hain", "depth": "detailed" }
+        ]
+      }
+    }
+  ]
+}

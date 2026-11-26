@@ -1,0 +1,69 @@
+{
+  "appName": "MedSarthi",
+  "tagline": "Clear, calm, personalized explanations of your doctor's advice",
+  "safety": {
+    "prototypeBannerTitle": "Educational Prototype — Synthetic Data Only",
+    "prototypeBannerBody": "MedSarthi is an AI-thon educational prototype using synthetic cases only. It is NOT clinically validated, does not diagnose or prescribe, and must not replace a qualified doctor.",
+    "prototypeFooter": "Educational Prototype • Synthetic Data Only • Not Clinically Validated for Real Care • Always confirm medical decisions with your doctor.",
+    "emergencyNote": "If you have severe chest pain, trouble breathing, sudden weakness, or heavy bleeding, call 112 / 108 or go to the nearest emergency hospital immediately."
+  },
+  "languages": {
+    "label": "Language",
+    "en": "English",
+    "hi": "हिन्दी",
+    "hi-Latn": "Hinglish"
+  },
+  "accessibility": {
+    "title": "Reading & Display Comfort",
+    "highContrast": "High Contrast",
+    "highContrastOn": "High Contrast: ON",
+    "highContrastOff": "High Contrast: OFF",
+    "fontSize": "Text Size",
+    "decreaseFont": "Decrease",
+    "increaseFont": "Increase",
+    "resetFont": "Reset to recommended",
+    "audioSpeed": "Audio Speed",
+    "readingComfort": "Reading Comfort",
+    "comfortOptions": {
+      "very_simple": "I prefer very simple explanations",
+      "simple": "I can read, but medical terms are difficult",
+      "comfortable": "I am comfortable reading detailed information",
+      "adaptive": "Let me choose how detailed each answer should be"
+    }
+  },
+  "provenance": {
+    "doctorProvided": "Doctor-Provided Information",
+    "aiSimplified": "AI Simplified Explanation",
+    "generalEducation": "General Medical Education",
+    "uncertainOrMissing": "Uncertain or Missing Details"
+  },
+  "patientHome": {
+    "greeting": "How can MedSarthi help you today?",
+    "actions": {
+      "instructions": "Understand my doctor's instructions",
+      "report": "Understand my report",
+      "medicine": "Understand my medicine",
+      "talk": "Talk to MedSarthi",
+      "listen": "Listen to my explanation",
+      "history": "My previous consultations"
+    }
+  },
+  "auth": {
+    "signInTitle": "Sign in to MedSarthi",
+    "demoSectionTitle": "1-Click Synthetic Demo Mode",
+    "demoPatientBtn": "Demo Patient (Ramesh Sharma, Age 64)",
+    "demoDoctorBtn": "Demo Doctor (Dr. Priya Mehta)",
+    "emailOrPhone": "Email or Phone",
+    "password": "Password",
+    "signInBtn": "Sign In",
+    "signingIn": "Signing in...",
+    "signOut": "Sign Out",
+    "signedInAs": "Signed in as",
+    "rolePatient": "Patient",
+    "roleDoctor": "Doctor",
+    "backendStatus": "Backend Health",
+    "statusChecking": "Checking...",
+    "statusOnline": "Connected",
+    "statusOffline": "Backend offline (start uvicorn on port 8000)"
+  }
+}

@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+:root {
+  --ms-font-sans: var(--font-noto-sans), var(--font-noto-devanagari), system-ui, -apple-system, sans-serif;
+  --ms-font-scale: 1;
+  --ms-base-px: 16px;
+
+  /* Calm, reassuring MedSarthi healthcare palette (Standard Accessible Mode) */
+  --ms-bg: #F8FAFC;
+  --ms-surface: #FFFFFF;
+  --ms-surface-alt: #F1F5F9;
+  --ms-ink: #0F172A;
+  --ms-ink-muted: #475569;
+  --ms-primary: #0F766E;
+  --ms-primary-hover: #115E59;
+  --ms-primary-ink: #FFFFFF;
+  --ms-primary-soft: #CCFBF1;
+  --ms-border: #CBD5E1;
+  --ms-focus: #0284C7;
+
+  /* Provenance category tokens (always paired with icon + label + border, never color-alone) */
+  --ms-prov-doctor-bg: #F0FDFA;
+  --ms-prov-doctor-border: #0F766E;
+  --ms-prov-ai-bg: #F0F9FF;
+  --ms-prov-ai-border: #0284C7;
+  --ms-prov-kb-bg: #F8FAFC;
+  --ms-prov-kb-border: #475569;
+  --ms-prov-uncertain-bg: #FFFBEB;
+  --ms-prov-uncertain-border: #B45309;
+
+  /* Safety & emergency red-flag tokens */
+  --ms-danger-bg: #FEF2F2;
+  --ms-danger-border: #B91C1C;
+  --ms-danger-ink: #7F1D1D;
+  --ms-banner-bg: #FFFBEB;
+  --ms-banner-border: #D97706;
+  --ms-banner-ink: #78350F;
+}
+
+/* WCAG AAA High-Contrast Mode (>= 7:1 contrast across surfaces, borders, and focus rings) */
+[data-high-contrast="true"] {
+  --ms-bg: #000000;
+  --ms-surface: #0A0A0A;
+  --ms-surface-alt: #171717;
+  --ms-ink: #FFFFFF;
+  --ms-ink-muted: #FACC15;
+  --ms-primary: #FDE047;
+  --ms-primary-hover: #FEF08A;
+  --ms-primary-ink: #000000;
+  --ms-primary-soft: #1F2937;
+  --ms-border: #FFFFFF;
+  --ms-focus: #38BDF8;
+
+  --ms-prov-doctor-bg: #052E16;
+  --ms-prov-doctor-border: #4ADE80;
+  --ms-prov-ai-bg: #082F49;
+  --ms-prov-ai-border: #38BDF8;
+  --ms-prov-kb-bg: #18181B;
+  --ms-prov-kb-border: #E4E4E7;
+  --ms-prov-uncertain-bg: #451A03;
+  --ms-prov-uncertain-border: #FACC15;
+
+  --ms-danger-bg: #450A0A;
+  --ms-danger-border: #FCA5A5;
+  --ms-danger-ink: #FFFFFF;
+  --ms-banner-bg: #1C1917;
+  --ms-banner-border: #FACC15;
+  --ms-banner-ink: #FEF08A;
+}
+
+html {
+  font-size: calc(var(--ms-base-px) * var(--ms-font-scale));
+}
+
+body {
+  font-family: var(--ms-font-sans);
+  background-color: var(--ms-bg);
+  color: var(--ms-ink);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Accessible keyboard focus indicator */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--ms-focus);
+  outline-offset: 2px;
+}
+
+/* Minimum 48px and 64px accessible tap targets */
+.tap-target {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+.tap-target-lg {
+  min-height: 64px;
+  min-width: 64px;
+}
+
+.ms-card {
+  background-color: var(--ms-surface);
+  color: var(--ms-ink);
+  border: 2px solid var(--ms-border);
+  border-radius: 1rem;
+}
+
+.ms-btn-primary {
+  background-color: var(--ms-primary);
+  color: var(--ms-primary-ink);
+  border: 2px solid var(--ms-primary);
+  font-weight: 700;
+  min-height: 48px;
+  border-radius: 0.75rem;
+  transition: background-color 150ms ease, transform 100ms ease;
+}
+
+.ms-btn-primary:hover:not(:disabled) {
+  background-color: var(--ms-primary-hover);
+}
+
+.ms-btn-secondary {
+  background-color: var(--ms-surface);
+  color: var(--ms-ink);
+  border: 2px solid var(--ms-border);
+  font-weight: 600;
+  min-height: 48px;
+  border-radius: 0.75rem;
+}
