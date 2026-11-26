@@ -1030,3 +1030,65 @@ async def test_doctor_generate_and_approve_integrity_consistency(api_client, mon
     )
     assert bad_appr.status_code == 409
     assert bad_appr.json()["error"]["code"] == "SAFETY_INTEGRITY_BLOCKED"
+
+
+@pytest.mark.asyncio
+async def test_guest_session_lan_cors_and_idempotent_seed(api_client):
+    """Verify account-free guest login, LAN dev CORS preflight, and idempotent seed_database."""
+    from app.seeds.seed_data import seed_database
+
+    client, _tmp, session_factory, _mp = api_client
+
+    # 1. LAN dev origin CORS preflight should return 200 (not 400 Disallowed CORS origin)
+    preflight = await client.options(
+        "/api/health",
+        headers={
+            "Origin": "http://192.168.3.101:3000",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert preflight.status_code == 200
+    assert preflight.headers.get("access-control-allow-origin") == "http://192.168.3.101:3000"
+
+    # 2. Account-free guest patient session works without email/password
+    guest_res = await client.post("/api/auth/guest", json={})
+    assert guest_res.status_code == 201
+    guest_data = guest_res.json()["data"]
+    assert guest_data["guest_mode"] is True
+    assert guest_data["user"]["role"] == "patient"
+    assert guest_data["user"]["email"].endswith("@guest.medsarthi.local")
+    tok_guest = guest_data["access_token"]
+
+    me_res = await client.get("/api/auth/me", headers=_auth_headers(tok_guest))
+    assert me_res.status_code == 200
+    assert me_res.json()["data"]["patient_profile"]["name"] == "Guest Patient"
+
+    # Guest can ask non-diagnostic Q&A immediately without creating an account
+    chat_res = await client.post(
+        "/api/chat",
+        headers=_auth_headers(tok_guest),
+        json={"message_text": "What does fever mean?", "target_language": "en"},
+    )
+    assert chat_res.status_code == 200
+
+    # 3. Create an extra consultation for Demo Patient and re-run seed_database() -> no MultipleResultsFound
+    client.cookies.clear()
+    doc_login = (await client.post("/api/demo/login", json={"role": "doctor"})).json()["data"]
+    tok_doc = doc_login["access_token"]
+    patients_res = await client.get("/api/doctor/patients", headers=_auth_headers(tok_doc))
+    ramesh = next(p for p in patients_res.json()["data"] if "Ramesh" in p["name"])
+    ramesh_id = ramesh["patient_id"]
+    extra_c = await client.post(
+        "/api/doctor/consultation",
+        headers=_auth_headers(tok_doc),
+        json={
+            "patient_id": ramesh_id,
+            "title": "Extra Consultation Before Reseed",
+            "original_doctor_input": "Take Paracetamol 500 mg SOS. Return if fever worsens.",
+        },
+    )
+    assert extra_c.status_code == 201
+
+    async with session_factory() as db:
+        reseed_result = await seed_database(db)
+    assert "kb_created" in reseed_result

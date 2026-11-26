@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, LogIn, Stethoscope, UserCheck } from "lucide-react";
+import { ArrowRight, LogIn, Sparkles, Stethoscope, UserCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/i18n/I18nProvider";
 import { api, ApiError } from "@/lib/api";
@@ -11,7 +11,7 @@ import { api, ApiError } from "@/lib/api";
 export default function LoginPage() {
   const router = useRouter();
   const { t } = useI18n();
-  const { login, refreshMe } = useAuth();
+  const { login, guestLogin, refreshMe } = useAuth();
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -47,6 +47,19 @@ export default function LoginPage() {
       router.push(role === "patient" ? "/patient" : "/doctor");
     } catch (err) {
       setErrorMsg(err instanceof ApiError ? err.message : "Unable to launch demo account.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleGuest() {
+    setErrorMsg(null);
+    setSubmitting(true);
+    try {
+      await guestLogin("patient");
+      router.push("/patient");
+    } catch (err) {
+      setErrorMsg(err instanceof ApiError ? err.message : "Unable to start guest session.");
     } finally {
       setSubmitting(false);
     }
@@ -136,7 +149,7 @@ export default function LoginPage() {
 
       <section className="ms-card p-5 space-y-3">
         <h2 className="text-lg font-extrabold">{t.auth.demoSectionTitle}</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <button
             type="button"
             disabled={submitting}
@@ -145,6 +158,15 @@ export default function LoginPage() {
           >
             <UserCheck className="h-5 w-5 shrink-0" aria-hidden="true" />
             <span>{t.auth.demoPatientBtn}</span>
+          </button>
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={() => void handleGuest()}
+            className="ms-btn-secondary tap-target flex items-center justify-center gap-2 px-4 text-sm"
+          >
+            <Sparkles className="h-5 w-5 shrink-0" aria-hidden="true" />
+            <span>Use Without Account</span>
           </button>
           <button
             type="button"

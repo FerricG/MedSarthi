@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Stethoscope, User, UserPlus } from "lucide-react";
+import { ArrowRight, Sparkles, Stethoscope, User, UserPlus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/i18n/I18nProvider";
 import { api, ApiError } from "@/lib/api";
@@ -11,7 +11,7 @@ import { api, ApiError } from "@/lib/api";
 export default function RegisterPage() {
   const router = useRouter();
   const { t } = useI18n();
-  const { refreshMe } = useAuth();
+  const { guestLogin, refreshMe } = useAuth();
 
   const [role, setRole] = useState<"patient" | "doctor">("patient");
   const [name, setName] = useState("");
@@ -243,11 +243,33 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        <div className="border-t pt-4 text-center text-sm" style={{ borderColor: "var(--ms-border)" }}>
-          <span style={{ color: "var(--ms-ink-muted)" }}>{t.auth.haveAccount} </span>
-          <Link href="/login" className="font-extrabold underline" style={{ color: "var(--ms-primary)" }}>
-            {t.nav.signIn}
-          </Link>
+        <div className="border-t pt-4 space-y-3 text-center text-sm" style={{ borderColor: "var(--ms-border)" }}>
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={async () => {
+              setErrorMsg(null);
+              setSubmitting(true);
+              try {
+                await guestLogin("patient");
+                router.push("/patient");
+              } catch (err) {
+                setErrorMsg(err instanceof ApiError ? err.message : "Could not start guest session.");
+              } finally {
+                setSubmitting(false);
+              }
+            }}
+            className="ms-btn-secondary tap-target inline-flex w-full items-center justify-center gap-2 px-4 text-sm"
+          >
+            <Sparkles className="h-4 w-4" aria-hidden="true" />
+            <span>Continue Without Account (Guest)</span>
+          </button>
+          <div>
+            <span style={{ color: "var(--ms-ink-muted)" }}>{t.auth.haveAccount} </span>
+            <Link href="/login" className="font-extrabold underline" style={{ color: "var(--ms-primary)" }}>
+              {t.nav.signIn}
+            </Link>
+          </div>
         </div>
       </section>
     </div>

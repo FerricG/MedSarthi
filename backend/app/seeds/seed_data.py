@@ -657,9 +657,11 @@ async def seed_database(session: AsyncSession | None = None) -> dict[str, int]:
         # Sample Synthetic Consultation (Approved & Shared)
         existing_consult = (
             await session.execute(
-                select(Consultation).where(Consultation.patient_id == pat_profile.id)
+                select(Consultation)
+                .where(Consultation.patient_id == pat_profile.id)
+                .limit(1)
             )
-        ).scalar_one_or_none()
+        ).scalars().first()
         if not existing_consult:
             raw_doctor_note = (
                 "SYNTHETIC CASE: Ramesh Sharma (64M). BP 142/88 mmHg. "
@@ -759,9 +761,11 @@ async def seed_database(session: AsyncSession | None = None) -> dict[str, int]:
         # Sample Synthetic Medical Lab Document
         existing_doc = (
             await session.execute(
-                select(MedicalDocument).where(MedicalDocument.patient_id == pat_profile.id)
+                select(MedicalDocument)
+                .where(MedicalDocument.patient_id == pat_profile.id)
+                .limit(1)
             )
-        ).scalar_one_or_none()
+        ).scalars().first()
         if not existing_doc:
             sample_ocr = (
                 "SYNTHETIC LAB REPORT — MedSarthi Demo Lab\n"

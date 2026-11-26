@@ -70,7 +70,7 @@ const JUDGE_WALKTHROUGH_STEPS = [
 export default function HomePage() {
   const router = useRouter();
   const { t } = useI18n();
-  const { user, patientProfile, doctorProfile, isLoading, refreshMe } = useAuth();
+  const { user, patientProfile, doctorProfile, isLoading, guestLogin, refreshMe } = useAuth();
 
   const [health, setHealth] = useState<HealthResponseData | null>(null);
   const [healthError, setHealthError] = useState(false);
@@ -106,6 +106,23 @@ export default function HomePage() {
         err instanceof ApiError
           ? err.message
           : "Unable to connect to backend for demo login. Ensure uvicorn is running on port 8000."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function launchGuest(role: "patient" | "doctor" = "patient") {
+    setDemoError(null);
+    setSubmitting(true);
+    try {
+      await guestLogin(role);
+      router.push(role === "patient" ? "/patient" : "/doctor");
+    } catch (err) {
+      setDemoError(
+        err instanceof ApiError
+          ? err.message
+          : "Unable to connect to backend for guest session. Ensure uvicorn is running on port 8000."
       );
     } finally {
       setSubmitting(false);
@@ -156,6 +173,14 @@ export default function HomePage() {
             </Link>
           ) : (
             <>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => void launchGuest("patient")}
+                className="ms-btn-secondary tap-target inline-flex items-center gap-1.5 px-4 text-sm"
+              >
+                <span>Use Without Account</span>
+              </button>
               <Link href="/login" className="ms-btn-secondary tap-target inline-flex items-center px-4 text-sm">
                 {t.nav.signIn}
               </Link>
@@ -259,7 +284,7 @@ export default function HomePage() {
           </p>
         )}
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
           <button
             type="button"
             disabled={submitting}
@@ -272,6 +297,24 @@ export default function HomePage() {
                 <span className="block text-base font-extrabold">{t.auth.demoPatientBtn}</span>
                 <span className="block text-xs font-medium opacity-90">
                   Opens 6-action Patient Home with seeded URI + BP consultation &amp; lab report
+                </span>
+              </span>
+            </span>
+            <ArrowRight className="h-5 w-5 shrink-0" aria-hidden="true" />
+          </button>
+
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={() => void launchGuest("patient")}
+            className="ms-btn-secondary tap-target-lg flex items-center justify-between gap-3 px-5 py-4 text-left"
+          >
+            <span className="flex items-center gap-3">
+              <Sparkles className="h-7 w-7 shrink-0" aria-hidden="true" />
+              <span>
+                <span className="block text-base font-extrabold">Use Without Account (Guest)</span>
+                <span className="block text-xs font-medium" style={{ color: "var(--ms-ink-muted)" }}>
+                  Instant private workspace — upload reports, ask questions &amp; listen with no sign-up
                 </span>
               </span>
             </span>
@@ -364,7 +407,24 @@ export default function HomePage() {
           { icon: BookOpen, title: t.patientHome.actions.history, desc: t.patientHome.actions.historyHint },
         ].map((card, i) => {
           const Icon = card.icon;
-          return (
+          async function launchGuest(role: "patient" | "doctor" = "patient") {
+    setDemoError(null);
+    setSubmitting(true);
+    try {
+      await guestLogin(role);
+      router.push(role === "patient" ? "/patient" : "/doctor");
+    } catch (err) {
+      setDemoError(
+        err instanceof ApiError
+          ? err.message
+          : "Unable to connect to backend for guest session. Ensure uvicorn is running on port 8000."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
             <div key={i} className="ms-card flex items-start gap-3 p-4">
               <span
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border"

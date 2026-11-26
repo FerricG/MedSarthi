@@ -1,7 +1,10 @@
 """Authentication routes: register, login, rotating refresh, logout, and /me."""
 
 from datetime import UTC, datetime, timedelta
-from fastapi import APIRouter, Depends, Request, Response
+from typing import Literal
+import uuid
+from fastapi import APIRouter, Body, Depends, Request, Response
+from pydantic import BaseModel, Field
 from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
@@ -35,6 +38,13 @@ from app.schemas.auth import (
 from app.schemas.common import ok_envelope
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+class GuestSessionRequest(BaseModel):
+    """Optional configuration for starting an account-free guest session."""
+
+    role: Literal["patient", "doctor"] = "patient"
+    name: str | None = Field(default=None, max_length=120)
 
 
 def _utcnow() -> datetime:
@@ -377,3 +387,73 @@ async def get_me(
     """Return authenticated user details and role profile/preferences."""
     context = await _load_role_context(db, current_user)
     return ok_envelope({"user": _serialize_user(current_user), **context})
+
+
+@router.post("/guest", status_code=201)
+async def create_guest_session(
+    request: Request,
+    response: Response,
+    payload: GuestSessionRequest = Body(default_factory=GuestSessionRequest),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Start an isolated account-free guest session without email, phone, or password."""
+    guest_suffix = uuid.uuid4().hex[:12]
+    guest_email = f"guest_{guest_suffix}@guest.medsarthi.local"
+    display_name = (payload.name or "").strip() or (
+        "Guest Patient" if payload.role == "patient" else "Guest Doctor"
+    )
+
+    user = User(
+        email=guest_email,
+        phone=None,
+        password_hash=hash_password(generate_opaque_token(24)),
+        role=payload.role,
+        is_active=True,
+    )
+    db.add(user)
+    await db.flush()
+
+    if payload.role == "patient":
+        profile = PatientProfile(
+            user_id=user.id,
+            name=display_name,
+            age_years=None,
+            gender=None,
+            onboarding_completed=False,
+            onboarding_step=1,
+        )
+        db.add(profile)
+        await db.flush()
+
+        defaults = compute_age_accessibility_defaults(None)
+        prefs = PatientPreference(
+            patient_id=profile.id,
+            font_size=str(defaults["font_size"]),
+            font_scale_pct=int(defaults["font_scale_pct"]),
+            audio_speed=float(defaults["audio_speed"]),
+        )
+        db.add(prefs)
+    else:
+        doc = DoctorProfile(
+            user_id=user.id,
+            full_name=display_name,
+            specialty="General Medicine (Guest)",
+            languages_spoken=["en", "hi"],
+            verification_status="verified",
+        )
+        db.add(doc)
+
+    access_token, csrf_token = await _issue_session_tokens(db, user, request, response)
+    await db.commit()
+
+    context = await _load_role_context(db, user)
+    return ok_envelope(
+        {
+            "user": _serialize_user(user),
+            "access_token": access_token,
+            "csrf_token": csrf_token,
+            "guest_mode": True,
+            "onboarding_required": not context.get("onboarding_completed", False),
+            **context,
+        }
+    )

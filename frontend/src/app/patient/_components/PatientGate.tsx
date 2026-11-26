@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Settings, UserCheck } from "lucide-react";
+import { ArrowLeft, Settings, Sparkles, UserCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/i18n/I18nProvider";
 import { api, ApiError } from "@/lib/api";
@@ -14,7 +14,7 @@ export interface PatientGateProps {
 }
 
 export function PatientGate({ children, showBackHome = true, title }: PatientGateProps) {
-  const { user, isLoading, refreshMe } = useAuth();
+  const { user, isLoading, guestLogin, refreshMe } = useAuth();
   const { t } = useI18n();
   const [demoLoading, setDemoLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -27,6 +27,18 @@ export function PatientGate({ children, showBackHome = true, title }: PatientGat
       await refreshMe();
     } catch (err) {
       setErrorMsg(err instanceof ApiError ? err.message : "Could not sign into demo patient.");
+    } finally {
+      setDemoLoading(false);
+    }
+  }
+
+  async function handleGuestPatient() {
+    setDemoLoading(true);
+    setErrorMsg(null);
+    try {
+      await guestLogin("patient");
+    } catch (err) {
+      setErrorMsg(err instanceof ApiError ? err.message : "Could not start guest session.");
     } finally {
       setDemoLoading(false);
     }
@@ -61,6 +73,15 @@ export function PatientGate({ children, showBackHome = true, title }: PatientGat
           >
             <UserCheck className="h-5 w-5" aria-hidden="true" />
             <span>{demoLoading ? t.auth.signingIn : t.auth.demoPatientBtn}</span>
+          </button>
+          <button
+            type="button"
+            disabled={demoLoading}
+            onClick={() => void handleGuestPatient()}
+            className="ms-btn-secondary tap-target-lg inline-flex items-center gap-2 px-5"
+          >
+            <Sparkles className="h-5 w-5" aria-hidden="true" />
+            <span>Use Without Account (Guest)</span>
           </button>
           <Link href="/login" className="ms-btn-secondary tap-target-lg inline-flex items-center px-5">
             {t.nav.signIn}

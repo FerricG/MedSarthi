@@ -808,6 +808,18 @@ export const api = {
     }
   },
 
+  guestLogin: async (role: "patient" | "doctor" = "patient", name?: string): Promise<AuthResponseData> => {
+    const data = await apiRequest<AuthResponseData>("/api/auth/guest", {
+      method: "POST",
+      body: JSON.stringify({ role, ...(name ? { name } : {}) }),
+      skipAuthRefresh: true,
+    });
+    if (data.access_token) {
+      setSessionTokens(data.access_token, data.csrf_token ?? null);
+    }
+    return data;
+  },
+
   // Auth
   login: async (identifier: string, password: string) => {
     const data = await apiRequest<AuthResponseData>("/api/auth/login", {

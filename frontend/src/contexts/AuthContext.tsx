@@ -18,6 +18,7 @@ interface AuthContextValue {
   login: (identifier: string, password: string) => Promise<AuthResponseData>;
   demoLoginPatient: () => Promise<AuthResponseData>;
   demoLoginDoctor: () => Promise<AuthResponseData>;
+  guestLogin: (role?: "patient" | "doctor", name?: string) => Promise<AuthResponseData>;
   logout: () => Promise<void>;
   refreshMe: () => Promise<void>;
 }
@@ -79,6 +80,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [login]
   );
 
+  const guestLogin = useCallback(
+    async (role: "patient" | "doctor" = "patient", name?: string) => {
+      const data = await api.guestLogin(role, name);
+      applyAuthData(data);
+      return data;
+    },
+    [applyAuthData]
+  );
+
   const logout = useCallback(async () => {
     await api.logout();
     setUser(null);
@@ -95,10 +105,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       demoLoginPatient,
       demoLoginDoctor,
+      guestLogin,
       logout,
       refreshMe,
     }),
-    [user, patientProfile, doctorProfile, isLoading, login, demoLoginPatient, demoLoginDoctor, logout, refreshMe]
+    [user, patientProfile, doctorProfile, isLoading, login, demoLoginPatient, demoLoginDoctor, guestLogin, logout, refreshMe]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -88,9 +88,11 @@ export function Navbar({ compact = false }: NavbarProps) {
 
         <div className="flex items-center gap-2">
           <span className="hidden text-xs font-bold sm:inline" style={{ color: "var(--ms-ink-muted)" }}>
-            {user.role === "patient"
-              ? patientProfile?.name || user.email
-              : doctorProfile?.full_name || user.email}
+            {user.email?.endsWith("@guest.medsarthi.local")
+              ? `${user.role === "patient" ? patientProfile?.name || "Guest" : doctorProfile?.full_name || "Guest"} (No Account)`
+              : user.role === "patient"
+                ? patientProfile?.name || user.email
+                : doctorProfile?.full_name || user.email}
           </span>
           <button
             type="button"
