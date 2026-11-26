@@ -244,12 +244,12 @@ export default function PatientGuidedFlowPage() {
     const extAge = fields.patient_age !== undefined && fields.patient_age !== null ? String(fields.patient_age) : "";
     const extGender = typeof fields.patient_gender === "string" ? fields.patient_gender : "";
 
-    setPatientName(extName || patientProfile?.name || "Patient");
-    setPatientAge(extAge || (patientProfile?.age_years ? String(patientProfile.age_years) : ""));
+    setPatientName(extName || "");
+    setPatientAge(extAge || "");
     if (extGender === "male" || extGender === "female" || extGender === "other") {
       setPatientGender(extGender);
-    } else if (patientProfile?.gender) {
-      setPatientGender(patientProfile.gender);
+    } else {
+      setPatientGender("prefer_not_to_say");
     }
     setEditingDemographics(false);
     setStep(3);
