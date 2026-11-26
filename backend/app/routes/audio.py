@@ -446,7 +446,7 @@ async def text_to_speech_route(
     credentials: HTTPAuthorizationCredentials | None = Depends(_optional_bearer),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Synthesize speech using Piper TTS and return streamable WAV URL + sentence cues."""
+    """Synthesize speech using Mithi v2 Flash TTS and return streamable WAV URL + sentence cues."""
     tts_res = await synthesize_speech_with_cues(
         text=payload.text,
         language=payload.language,
@@ -456,7 +456,7 @@ async def text_to_speech_route(
 
     audio_bytes: bytes | None = tts_res.get("audio_bytes")
     if not audio_bytes:
-        raise AppError(500, "AUDIO_GENERATION_FAILED", "Piper TTS returned empty audio.")
+        raise AppError(500, "AUDIO_GENERATION_FAILED", "Mithi v2 Flash returned empty audio.")
 
     current_user: User | None = None
     if credentials and credentials.credentials:
@@ -537,7 +537,7 @@ async def stream_tts_audio(
     credentials: HTTPAuthorizationCredentials | None = Depends(_optional_bearer),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
-    """Stream synthesized Piper TTS WAV bytes."""
+    """Stream synthesized Mithi v2 Flash WAV bytes."""
     settings = get_settings()
 
     # Check public TTS cache first (used by unauthenticated narrator/onboarding)

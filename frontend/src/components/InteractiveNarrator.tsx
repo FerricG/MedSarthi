@@ -2,7 +2,11 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
-import { speakTextWithPiper, stopActivePiperNarration } from "@/components/AudioPlayer";
+import {
+  MITHI_VOICE_OPTIONS,
+  speakTextWithMithi,
+  stopActiveMithiNarration,
+} from "@/components/AudioPlayer";
 import { useAccessibility } from "@/contexts/AccessibilityContext";
 import { type SupportedLocale, useI18n } from "@/i18n/I18nProvider";
 import { type AudioSpeed } from "@/lib/api";
@@ -20,6 +24,7 @@ export interface InteractiveNarratorProps {
   language?: SupportedLocale;
   autoSpeak?: boolean;
   speakerName?: string;
+  voice?: string;
 }
 
 export function InteractiveNarrator({
@@ -28,6 +33,7 @@ export function InteractiveNarrator({
   language,
   autoSpeak = true,
   speakerName = "Dr. Sarthi",
+  voice = "charvi",
 }: InteractiveNarratorProps) {
   const { prefs, setAudioSpeed } = useAccessibility();
   const { locale } = useI18n();
@@ -35,30 +41,32 @@ export function InteractiveNarrator({
 
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState(voice);
   const stopRef = useRef<(() => void) | null>(null);
 
   const stopSpeaking = useCallback(() => {
     stopRef.current?.();
     stopRef.current = null;
-    stopActivePiperNarration();
+    stopActiveMithiNarration();
     setIsSpeaking(false);
   }, []);
 
   const speakNow = useCallback(
-    (overrideSpeed?: AudioSpeed) => {
+    (overrideSpeed?: AudioSpeed, overrideVoice?: string) => {
       if (muted || !message.trim()) return;
       stopSpeaking();
       setIsSpeaking(true);
-      stopRef.current = speakTextWithPiper(
+      stopRef.current = speakTextWithMithi(
         message,
         activeLang,
         overrideSpeed ?? prefs.audioSpeed,
+        overrideVoice ?? selectedVoice,
         () => {
           setIsSpeaking(false);
         }
       );
     },
-    [activeLang, message, muted, prefs.audioSpeed, stopSpeaking]
+    [activeLang, message, muted, prefs.audioSpeed, selectedVoice, stopSpeaking]
   );
 
   useEffect(() => {
@@ -325,6 +333,38 @@ export function InteractiveNarrator({
               <RotateCcw className="h-4 w-4" aria-hidden="true" />
               <span>Replay</span>
             </button>
+
+            {/* Voice Dropdown */}
+            <select
+              aria-label="Narrator voice"
+              value={selectedVoice}
+              onChange={(e) => {
+                const nextV = e.target.value;
+                setSelectedVoice(nextV);
+                if (isSpeaking) speakNow(prefs.audioSpeed, nextV);
+              }}
+              className="tap-target rounded-xl border-2 px-2.5 py-1.5 text-xs font-bold"
+              style={{
+                backgroundColor: "var(--ms-surface-alt)",
+                borderColor: "var(--ms-border)",
+                color: "var(--ms-ink)",
+              }}
+            >
+              <optgroup label="Female Doctor Voices">
+                {MITHI_VOICE_OPTIONS.filter((v) => v.gender === "female").map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Male Doctor Voices">
+                {MITHI_VOICE_OPTIONS.filter((v) => v.gender === "male").map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
 
             <button
               type="button"

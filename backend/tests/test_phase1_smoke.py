@@ -130,7 +130,7 @@ async def test_health_endpoint(test_app):
         assert body["data"]["db"] == "ok"
         assert body["data"]["storage"] == "ok"
         assert body["data"]["ocr_local"] in ("pymupdf", "pymupdf+rapidocr")
-        assert body["data"]["tts_local"] == "piper_tts"
+        assert body["data"]["tts_local"] in ("mithi_v2_flash_cuda", "mithi_v2_flash_cpu")
 
 
 @pytest.mark.asyncio

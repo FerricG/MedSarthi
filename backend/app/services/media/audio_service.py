@@ -20,7 +20,7 @@ from app.core.config import Settings, get_settings
 from app.core.exceptions import AppError
 from app.models.clinical import AudioRecord
 from app.services.ai.base import normalize_language
-from app.services.media.piper_service import piper_tts_service
+from app.services.media.mithi_service import mithi_tts_service
 
 MAX_AUDIO_BYTES = 50 * 1024 * 1024  # 50 MB
 GROQ_STT_MAX_BYTES = 25 * 1024 * 1024  # 25 MB
@@ -538,10 +538,10 @@ class TTSProvider(ABC):
         """Synthesize text and return audio metadata + accurate sentence_cues."""
 
 
-class PiperTTSProvider(TTSProvider):
-    """Lightweight CPU-only Piper TTS returning WAV bytes and synchronized sentence_cues."""
+class MithiTTSProvider(TTSProvider):
+    """Mithi v2 Flash multilingual TTS with NVIDIA RTX 3050 GPU acceleration and CPU fallback."""
 
-    provider_name = "piper_tts"
+    provider_name = "mithi_v2_flash"
 
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
@@ -558,25 +558,25 @@ class PiperTTSProvider(TTSProvider):
     ) -> dict[str, Any]:
         speed = normalize_audio_speed(audio_speed)
         lang = normalize_language(language)
-        piper_res = await piper_tts_service.synthesize_wav_async(
-            text,
+        mithi_res = await mithi_tts_service.synthesize_wav_async(
+            text=text,
+            language=lang,
+            voice=voice_preference,
             audio_speed=speed,
             settings=self.settings,
         )
-        cues, est_duration_s = build_sentence_cues(
-            piper_res["cleaned_text"],
-            audio_speed=speed,
-        )
-        duration_s = float(piper_res.get("duration_seconds") or est_duration_s)
         return {
             "provider": self.provider_name,
-            "voice_name": piper_res["voice_name"],
-            "language": lang,
+            "voice_name": mithi_res["voice_name"],
+            "language": mithi_res["language"],
             "audio_speed": speed,
             "mime_type": "audio/wav",
-            "audio_bytes": piper_res["wav_bytes"],
-            "duration_seconds": duration_s,
-            "sentence_cues": cues,
+            "audio_bytes": mithi_res["wav_bytes"],
+            "duration_seconds": mithi_res["duration_seconds"],
+            "inference_seconds": mithi_res.get("inference_seconds", 0.0),
+            "device": mithi_res.get("device", "cuda"),
+            "peak_vram_mb": mithi_res.get("peak_vram_mb", 0.0),
+            "sentence_cues": mithi_res.get("sentence_cues", []),
             "use_browser_speech_synthesis": False,
         }
 
@@ -588,9 +588,9 @@ async def synthesize_speech_with_cues(
     audio_speed: float = 1.0,
     settings: Settings | None = None,
 ) -> dict[str, Any]:
-    """Synthesize speech using Piper TTS on CPU with synchronized sentence_cues."""
+    """Synthesize speech using Mithi v2 Flash on RTX 3050 GPU with synchronized sentence_cues."""
     cfg = settings or get_settings()
-    provider = PiperTTSProvider(cfg)
+    provider = MithiTTSProvider(cfg)
     return await provider.synthesize(
         text=text,
         language=language,

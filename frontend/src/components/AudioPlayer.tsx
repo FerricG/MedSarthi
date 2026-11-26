@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pause, Play, RotateCcw, Square, Volume2 } from "lucide-react";
+import { Pause, Play, RotateCcw, Square, Volume2, User, UserCheck } from "lucide-react";
 import { useAccessibility } from "@/contexts/AccessibilityContext";
 import { useI18n, type SupportedLocale } from "@/i18n/I18nProvider";
 import {
@@ -12,6 +12,19 @@ import {
 } from "@/lib/api";
 
 const SPEED_OPTIONS: AudioSpeed[] = [0.75, 0.85, 1.0, 1.15, 1.25];
+
+export const MITHI_VOICE_OPTIONS = [
+  { id: "charvi", label: "Charvi (Female - Doctor Default)", gender: "female" },
+  { id: "vaidehi", label: "Vaidehi (Female - Calm)", gender: "female" },
+  { id: "ahana", label: "Ahana (Female - Clear)", gender: "female" },
+  { id: "malini", label: "Malini (Female - Gentle)", gender: "female" },
+  { id: "jahnavi", label: "Jahnavi (Female - Expressive)", gender: "female" },
+  { id: "satvik", label: "Satvik (Male - Doctor Default)", gender: "male" },
+  { id: "anirban", label: "Anirban (Male - Calm)", gender: "male" },
+  { id: "nakul", label: "Nakul (Male - Clear)", gender: "male" },
+  { id: "vasant", label: "Vasant (Male - Friendly)", gender: "male" },
+  { id: "siddhant", label: "Siddhant (Male - Deep)", gender: "male" },
+];
 
 export function splitIntoSentences(text: string): string[] {
   const cleaned = text.replace(/\s+/g, " ").trim();
@@ -43,19 +56,23 @@ export function getSpeechLangTag(locale: SupportedLocale): string {
 let activeGlobalStop: (() => void) | null = null;
 let globalSpeechSeq = 0;
 
-export function stopActivePiperNarration(): void {
+export function stopActiveMithiNarration(): void {
   globalSpeechSeq += 1;
   activeGlobalStop?.();
   activeGlobalStop = null;
 }
 
+// Backward compatibility alias
+export const stopActivePiperNarration = stopActiveMithiNarration;
+
 /**
- * Stream Piper TTS WAV audio from /api/speech/tts with global overlap prevention.
+ * Stream Mithi v2 Flash TTS WAV audio from /api/speech/tts with global overlap prevention.
  */
-export function speakTextWithPiper(
+export function speakTextWithMithi(
   text: string,
   locale: SupportedLocale = "en",
   speed: AudioSpeed = 1.0,
+  voicePreference: string = "charvi",
   onEnd?: () => void,
   onError?: (msg: string) => void
 ): () => void {
@@ -65,7 +82,7 @@ export function speakTextWithPiper(
     return () => {};
   }
 
-  stopActivePiperNarration();
+  stopActiveMithiNarration();
   const mySeq = ++globalSpeechSeq;
 
   let cancelled = false;
@@ -92,7 +109,7 @@ export function speakTextWithPiper(
       const res = await api.textToSpeech({
         text: cleaned,
         language: locale,
-        voice_preference: "warm_female",
+        voice_preference: voicePreference,
         audio_speed: speed,
       });
       if (cancelled || globalSpeechSeq !== mySeq || !res.stream_url) {
@@ -124,7 +141,7 @@ export function speakTextWithPiper(
       await audio.play();
     } catch (err) {
       stop();
-      onError?.(err instanceof Error ? err.message : "Piper TTS failed.");
+      onError?.(err instanceof Error ? err.message : "Mithi v2 Flash TTS failed.");
       onEnd?.();
     }
   })();
@@ -133,6 +150,17 @@ export function speakTextWithPiper(
     stop();
     if (activeGlobalStop === stop) activeGlobalStop = null;
   };
+}
+
+// Backward compatibility alias
+export function speakTextWithPiper(
+  text: string,
+  locale: SupportedLocale = "en",
+  speed: AudioSpeed = 1.0,
+  onEnd?: () => void,
+  onError?: (msg: string) => void
+): () => void {
+  return speakTextWithMithi(text, locale, speed, "charvi", onEnd, onError);
 }
 
 export interface AudioPlayerProps {
@@ -144,6 +172,7 @@ export interface AudioPlayerProps {
   label?: string;
   compact?: boolean;
   showTranscriptLines?: boolean;
+  defaultVoice?: string;
   onActiveSentenceChange?: (index: number | null) => void;
 }
 
@@ -158,6 +187,7 @@ export function AudioPlayer({
   label,
   compact = false,
   showTranscriptLines = true,
+  defaultVoice = "charvi",
   onActiveSentenceChange,
 }: AudioPlayerProps) {
   const { t, locale, formatMessage } = useI18n();
@@ -171,6 +201,7 @@ export function AudioPlayer({
 
   const [status, setStatus] = useState<PlaybackStatus>("idle");
   const [speed, setSpeed] = useState<AudioSpeed>(prefs.audioSpeed);
+  const [voice, setVoice] = useState<string>(defaultVoice);
   const [activeSentenceIdx, setActiveSentenceIdx] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -193,7 +224,7 @@ export function AudioPlayer({
 
   const cleanupPlayback = useCallback(() => {
     speechTokenRef.current += 1;
-    stopActivePiperNarration();
+    stopActiveMithiNarration();
     if (audioElRef.current) {
       audioElRef.current.pause();
       audioElRef.current.src = "";
@@ -219,7 +250,7 @@ export function AudioPlayer({
   }, [text, effectiveLang, cleanupPlayback]);
 
   const startPlayback = useCallback(
-    async (startIdx = 0, targetSpeed: AudioSpeed = speed) => {
+    async (startIdx = 0, targetSpeed: AudioSpeed = speed, targetVoice: string = voice) => {
       if (!text.trim()) return;
       const myToken = ++speechTokenRef.current;
       cleanupPlayback();
@@ -231,7 +262,7 @@ export function AudioPlayer({
         const res = await api.textToSpeech({
           text,
           language: effectiveLang,
-          voice_preference: "warm_female",
+          voice_preference: targetVoice,
           audio_speed: targetSpeed,
           explanation_id: explanationId,
           message_id: messageId,
@@ -240,7 +271,7 @@ export function AudioPlayer({
         if (speechTokenRef.current !== myToken) return;
         cuesRef.current = res.cues || [];
         if (!res.stream_url) {
-          throw new Error("Piper TTS stream URL missing.");
+          throw new Error("Mithi v2 Flash stream URL missing.");
         }
 
         const blobUrl = await fetchAuthenticatedBlobUrl(res.stream_url);
@@ -272,7 +303,7 @@ export function AudioPlayer({
         audio.onerror = () => {
           setStatus("idle");
           setActiveSentenceIdx(null);
-          setErrorMsg("Unable to play Piper TTS audio.");
+          setErrorMsg("Unable to play Mithi TTS audio.");
         };
 
         await audio.play();
@@ -281,10 +312,10 @@ export function AudioPlayer({
       } catch (err) {
         setStatus("idle");
         setActiveSentenceIdx(null);
-        setErrorMsg(err instanceof Error ? err.message : "Piper TTS failed to generate speech.");
+        setErrorMsg(err instanceof Error ? err.message : "Mithi v2 Flash failed to generate speech.");
       }
     },
-    [text, speed, cleanupPlayback, effectiveLang, explanationId, messageId]
+    [text, speed, voice, cleanupPlayback, effectiveLang, explanationId, messageId]
   );
 
   const handlePause = () => {
@@ -308,14 +339,21 @@ export function AudioPlayer({
   };
 
   const handleReplay = () => {
-    void startPlayback(0, speed);
+    void startPlayback(0, speed, voice);
   };
 
   const handleSpeedSelect = (nextSpeed: AudioSpeed) => {
     setSpeed(nextSpeed);
     setAudioSpeed(nextSpeed);
     if (status === "playing") {
-      void startPlayback(activeSentenceIdx ?? 0, nextSpeed);
+      void startPlayback(activeSentenceIdx ?? 0, nextSpeed, voice);
+    }
+  };
+
+  const handleVoiceSelect = (nextVoice: string) => {
+    setVoice(nextVoice);
+    if (status === "playing") {
+      void startPlayback(activeSentenceIdx ?? 0, speed, nextVoice);
     }
   };
 
@@ -335,7 +373,7 @@ export function AudioPlayer({
             <button
               type="button"
               disabled={status === "loading" || sentences.length === 0}
-              onClick={() => void startPlayback(0, speed)}
+              onClick={() => void startPlayback(0, speed, voice)}
               className="ms-btn-primary tap-target inline-flex items-center gap-2 px-4 text-sm"
             >
               <Volume2 className="h-5 w-5" aria-hidden="true" />
@@ -383,30 +421,63 @@ export function AudioPlayer({
           )}
         </div>
 
-        {/* Speed Selector (0.75x - 1.25x) */}
-        <div className="flex flex-wrap items-center gap-1" role="group" aria-label={t.audio.speed}>
-          <span className="mr-1 text-xs font-bold" style={{ color: "var(--ms-ink-muted)" }}>
-            {t.audio.speed}:
-          </span>
-          {SPEED_OPTIONS.map((opt) => {
-            const active = speed === opt;
-            return (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => handleSpeedSelect(opt)}
-                aria-pressed={active}
-                className="tap-target rounded-lg border-2 px-2.5 py-1 text-xs font-extrabold"
-                style={{
-                  backgroundColor: active ? "var(--ms-primary)" : "var(--ms-surface-alt)",
-                  color: active ? "var(--ms-primary-ink)" : "var(--ms-ink)",
-                  borderColor: active ? "var(--ms-primary)" : "var(--ms-border)",
-                }}
-              >
-                {opt}x
-              </button>
-            );
-          })}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Voice Selector */}
+          <div className="flex items-center gap-1.5">
+            <User className="h-4 w-4" style={{ color: "var(--ms-ink-muted)" }} aria-hidden="true" />
+            <select
+              aria-label="Voice model"
+              value={voice}
+              onChange={(e) => handleVoiceSelect(e.target.value)}
+              className="tap-target rounded-lg border px-2 py-1 text-xs font-bold"
+              style={{
+                backgroundColor: "var(--ms-surface-alt)",
+                borderColor: "var(--ms-border)",
+                color: "var(--ms-ink)",
+              }}
+            >
+              <optgroup label="Female Voices">
+                {MITHI_VOICE_OPTIONS.filter((v) => v.gender === "female").map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Male Voices">
+                {MITHI_VOICE_OPTIONS.filter((v) => v.gender === "male").map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </div>
+
+          {/* Speed Selector (0.75x - 1.25x) */}
+          <div className="flex flex-wrap items-center gap-1" role="group" aria-label={t.audio.speed}>
+            <span className="mr-1 text-xs font-bold" style={{ color: "var(--ms-ink-muted)" }}>
+              {t.audio.speed}:
+            </span>
+            {SPEED_OPTIONS.map((opt) => {
+              const active = speed === opt;
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => handleSpeedSelect(opt)}
+                  aria-pressed={active}
+                  className="tap-target rounded-lg border-2 px-2.5 py-1 text-xs font-extrabold"
+                  style={{
+                    backgroundColor: active ? "var(--ms-primary)" : "var(--ms-surface-alt)",
+                    color: active ? "var(--ms-primary-ink)" : "var(--ms-ink)",
+                    borderColor: active ? "var(--ms-primary)" : "var(--ms-border)",
+                  }}
+                >
+                  {opt}x
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -425,7 +496,7 @@ export function AudioPlayer({
               total: sentences.length,
             })}
           </span>
-          <span style={{ color: "var(--ms-ink-muted)" }}>Piper Neural Voice (CPU)</span>
+          <span style={{ color: "var(--ms-ink-muted)" }}>Mithi v2 Flash (RTX 3050 GPU)</span>
         </div>
       )}
 
@@ -439,7 +510,7 @@ export function AudioPlayer({
                 key={idx}
                 ref={isCurrent ? activeLineRef : undefined}
                 type="button"
-                onClick={() => void startPlayback(idx, speed)}
+                onClick={() => void startPlayback(idx, speed, voice)}
                 aria-current={isCurrent ? "true" : undefined}
                 className="block w-full rounded-xl border-2 px-3 py-2 text-left text-sm leading-relaxed transition-colors"
                 style={{

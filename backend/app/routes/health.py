@@ -31,7 +31,16 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict:
 
     has_pymupdf = importlib.util.find_spec("fitz") is not None
     has_rapidocr = importlib.util.find_spec("rapidocr") is not None
-    has_piper = importlib.util.find_spec("piper") is not None
+    has_torch = importlib.util.find_spec("torch") is not None
+    has_cuda = False
+    if has_torch:
+        try:
+            import torch
+            has_cuda = torch.cuda.is_available()
+        except Exception:
+            has_cuda = False
+
+    has_mithi = settings.mithi_model_path.exists()
 
     if has_pymupdf and has_rapidocr:
         ocr_local = "pymupdf+rapidocr"
@@ -39,6 +48,8 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict:
         ocr_local = "pymupdf"
     else:
         ocr_local = "unavailable"
+
+    tts_status = "mithi_v2_flash_cuda" if (has_mithi and has_cuda) else ("mithi_v2_flash_cpu" if has_mithi else "unavailable")
 
     return ok_envelope(
         {
@@ -48,7 +59,7 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict:
             "db": db_status,
             "storage": storage_status,
             "ocr_local": ocr_local,
-            "tts_local": "piper_tts" if has_piper else "unavailable",
+            "tts_local": tts_status,
             "ai_providers": {
                 "llm": (
                     "configured"
@@ -66,7 +77,7 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict:
                     else ("pymupdf_rapidocr_local" if has_pymupdf and has_rapidocr else "pymupdf_local")
                 ),
                 "stt": "configured" if (settings.DEEPGRAM_API_KEY or settings.GROQ_API_KEY) else "fallback_browser",
-                "tts": "piper_tts_local" if has_piper else "unavailable",
+                "tts": tts_status,
             },
         }
     )

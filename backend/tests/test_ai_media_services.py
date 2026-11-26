@@ -759,7 +759,7 @@ async def test_audio_ffmpeg_stt_tts_cues_and_purge(seeded_session, monkeypatch: 
         audio_speed=1.25,
     )
     assert cues_slow["use_browser_speech_synthesis"] is False
-    assert cues_slow["provider"] == "piper_tts"
+    assert cues_slow["provider"] in ("mithi_v2_flash", "piper_tts")
     assert cues_slow["mime_type"] == "audio/wav"
     assert isinstance(cues_slow["audio_bytes"], (bytes, bytearray))
     assert cues_slow["audio_bytes"][:4] == b"RIFF"
@@ -827,10 +827,10 @@ async def test_audio_ffmpeg_stt_tts_cues_and_purge(seeded_session, monkeypatch: 
 
 
 @pytest.mark.asyncio
-async def test_piper_tts_caching_preprocessing_speed_and_long_text():
-    """Verify Piper TTS loads & caches voice once, cleans text, handles long text, and adjusts speed."""
+async def test_mithi_tts_caching_preprocessing_speed_and_long_text():
+    """Verify Mithi v2 Flash TTS loads & caches engine once, cleans text, handles long text, and adjusts speed."""
     from app.core.exceptions import AppError
-    from app.services.media.piper_service import piper_tts_service, preprocess_text_for_speech
+    from app.services.media.mithi_service import mithi_tts_service, preprocess_text_for_speech
 
     # 1. Text cleaning & empty/unsupported character handling
     cleaned = preprocess_text_for_speech("**Take Paracetamol 500 mg** — 1 tablet if fever > 100°F [link](https://example.com)")
@@ -840,18 +840,18 @@ async def test_piper_tts_caching_preprocessing_speed_and_long_text():
     assert "https://" not in cleaned
 
     with pytest.raises(AppError) as exc_info:
-        await piper_tts_service.synthesize_wav_async("   *** ###   ")
+        await mithi_tts_service.synthesize_wav_async("   *** ###   ")
     assert exc_info.value.code == "VALIDATION_ERROR"
 
-    # 2. Voice instance is cached across calls (no repeated reload/download)
-    v1, name1 = piper_tts_service.get_voice()
-    v2, name2 = piper_tts_service.get_voice()
-    assert v1 is v2
-    assert name1 == name2 == "en_US-amy-medium"
+    # 2. Engine instance is cached across calls (no repeated reload)
+    e1, dev1 = mithi_tts_service._get_engine()
+    e2, dev2 = mithi_tts_service._get_engine()
+    assert e1 is e2
+    assert dev1 == dev2
 
     # 3. Short text at 0.75x vs 1.25x speed
-    slow = await piper_tts_service.synthesize_wav_async("Take one tablet after breakfast.", audio_speed=0.75)
-    fast = await piper_tts_service.synthesize_wav_async("Take one tablet after breakfast.", audio_speed=1.25)
+    slow = await mithi_tts_service.synthesize_wav_async("Take one tablet after breakfast.", audio_speed=0.75)
+    fast = await mithi_tts_service.synthesize_wav_async("Take one tablet after breakfast.", audio_speed=1.25)
     assert slow["wav_bytes"][:4] == b"RIFF"
     assert fast["wav_bytes"][:4] == b"RIFF"
     assert slow["duration_seconds"] > fast["duration_seconds"]
@@ -867,7 +867,7 @@ async def test_piper_tts_caching_preprocessing_speed_and_long_text():
         ]
         * 2
     )
-    long_res = await piper_tts_service.synthesize_wav_async(long_text, audio_speed=1.0)
+    long_res = await mithi_tts_service.synthesize_wav_async(long_text, audio_speed=1.0)
     assert long_res["wav_bytes"][:4] == b"RIFF"
     assert long_res["duration_seconds"] > 5.0
 
