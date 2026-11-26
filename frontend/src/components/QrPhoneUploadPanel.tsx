@@ -45,8 +45,25 @@ export function QrPhoneUploadPanel({
   }, []);
 
   useEffect(() => {
-    void refreshStatus();
-  }, [refreshStatus]);
+    let active = true;
+    async function initQr() {
+      try {
+        const data = await api.getRemoteUploadStatus();
+        if (!active) return;
+        setStatus(data);
+        if (!data.running) {
+          const started = await api.startRemoteUpload({});
+          if (active) setStatus(started);
+        }
+      } catch {
+        // Ignore transient startup errors
+      }
+    }
+    void initQr();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!status?.running) return;

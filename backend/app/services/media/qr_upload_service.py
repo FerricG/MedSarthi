@@ -445,7 +445,7 @@ class QrRemoteUploadManager:
                 if token:
                     pyngrok_cfg.auth_token = token
 
-                tunnel = ngrok.connect(addr=target_port, proto="http", bind_tls=True)
+                tunnel = ngrok.connect(addr=target_port, proto="http")
                 self._tunnel = tunnel
                 self._public_url = tunnel.public_url
                 if self._public_url and self._public_url.startswith("http://"):

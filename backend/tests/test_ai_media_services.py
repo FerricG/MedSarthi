@@ -870,3 +870,15 @@ async def test_piper_tts_caching_preprocessing_speed_and_long_text():
     long_res = await piper_tts_service.synthesize_wav_async(long_text, audio_speed=1.0)
     assert long_res["wav_bytes"][:4] == b"RIFF"
     assert long_res["duration_seconds"] > 5.0
+
+
+def test_openrouter_provider_registered():
+    """Verify OpenRouterLLMProvider is wired into ProviderRegistry when OPENROUTER_API_KEY is set."""
+    from app.core.config import Settings
+    from app.services.ai.registry import ProviderRegistry
+
+    cfg = Settings(OPENROUTER_API_KEY="sk-or-test-key", LLM_PRIMARY_PROVIDER="openrouter")
+    reg = ProviderRegistry(cfg)
+    chain, warnings = reg.get_llm_chain()
+    assert not warnings
+    assert any(p.provider_name == "openrouter" for p in chain)

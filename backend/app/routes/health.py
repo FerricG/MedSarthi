@@ -52,7 +52,12 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict:
             "ai_providers": {
                 "llm": (
                     "configured"
-                    if (settings.GROQ_API_KEY or settings.GEMINI_API_KEY or settings.OPENAI_API_KEY)
+                    if (
+                        settings.GROQ_API_KEY
+                        or settings.GEMINI_API_KEY
+                        or settings.OPENAI_API_KEY
+                        or settings.OPENROUTER_API_KEY
+                    )
                     else "fallback_deterministic"
                 ),
                 "ocr": (

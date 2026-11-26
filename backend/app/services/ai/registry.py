@@ -14,6 +14,7 @@ from app.services.ai.llm_providers import (
     GeminiLLMProvider,
     GroqLLMProvider,
     OpenAILLMProvider,
+    OpenRouterLLMProvider,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,7 +49,7 @@ def check_provider_privacy(provider_name: str, settings: Settings) -> tuple[bool
             )
         return True, None
 
-    if name == "openai":
+    if name in ("openai", "openrouter"):
         return True, None
 
     return False, f"Unknown LLM provider '{provider_name}'."
@@ -62,6 +63,8 @@ def _build_provider(name: str, settings: Settings) -> LLMProvider | None:
         return GeminiLLMProvider(settings)
     if normalized == "openai":
         return OpenAILLMProvider(settings)
+    if normalized == "openrouter":
+        return OpenRouterLLMProvider(settings)
     return None
 
 
@@ -79,7 +82,7 @@ class ProviderRegistry:
         """
         warnings: list[str] = []
         candidates: list[str] = []
-        for raw_name in (self.settings.LLM_PRIMARY_PROVIDER, self.settings.LLM_FALLBACK_PROVIDER):
+        for raw_name in (self.settings.LLM_PRIMARY_PROVIDER, self.settings.LLM_FALLBACK_PROVIDER, "openrouter"):
             name = (raw_name or "").strip().lower()
             if name and name not in candidates:
                 candidates.append(name)

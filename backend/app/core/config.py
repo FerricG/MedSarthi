@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-3.5-flash-lite"
     OPENAI_API_KEY: str = Field(default="")
     OPENAI_MODEL: str = "gpt-4o-mini"
+    OPENROUTER_API_KEY: str = Field(default="")
+    OPENROUTER_MODEL: str = "meta-llama/llama-3.3-70b-instruct:free"
+
+    QR_UPLOAD_AUTO_START: bool = True
 
     OCR_PRIMARY_PROVIDER: str = "pymupdf_rapidocr"
     OCR_FALLBACK_PROVIDER: str = "google_vision"

@@ -230,6 +230,62 @@ class OpenAILLMProvider(LLMProvider):
         )
 
 
+class OpenRouterLLMProvider(LLMProvider):
+    """OpenRouter API provider (OpenAI-compatible chat completions)."""
+
+    provider_name = "openrouter"
+    supports_zero_training = True
+
+    def __init__(self, settings: Settings | None = None) -> None:
+        self.settings = settings or get_settings()
+        self.api_key = self.settings.OPENROUTER_API_KEY.strip()
+        self.model_name = self.settings.OPENROUTER_MODEL or "meta-llama/llama-3.3-70b-instruct:free"
+
+    def is_configured(self) -> bool:
+        return bool(self.api_key)
+
+    async def generate_json(self, request: LLMTaskRequest) -> LLMResponse:
+        if not self.is_configured():
+            raise AppError(503, "PROVIDER_UNAVAILABLE", "OpenRouter API key is not configured.")
+        t0 = time.perf_counter()
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": self.settings.FRONTEND_ORIGIN or "http://localhost:3000",
+            "X-Title": "MedSarthi",
+        }
+        body: dict[str, Any] = {
+            "model": self.model_name,
+            "temperature": request.temperature,
+            "max_tokens": request.max_tokens,
+            "messages": [
+                {"role": "system", "content": request.system_prompt},
+                {"role": "user", "content": request.user_prompt},
+            ],
+        }
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers=headers,
+                json=body,
+            )
+        if resp.status_code >= 400:
+            raise AppError(503, "PROVIDER_UNAVAILABLE", f"OpenRouter API error ({resp.status_code}).")
+        data = resp.json()
+        content = data["choices"][0]["message"]["content"]
+        usage = data.get("usage", {})
+        return LLMResponse(
+            data=_extract_json_object(content),
+            raw_text=content,
+            provider_name=self.provider_name,
+            model_name=self.model_name,
+            is_demo_fallback=False,
+            latency_ms=round((time.perf_counter() - t0) * 1000, 2),
+            prompt_tokens=int(usage.get("prompt_tokens", 0)),
+            completion_tokens=int(usage.get("completion_tokens", 0)),
+        )
+
+
 # ---------------------------------------------------------------------------
 # Grounded Deterministic Demo Provider (active ONLY when no cloud keys &
 # SYNTHETIC_PROTOTYPE_MODE=true)

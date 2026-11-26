@@ -1,6 +1,8 @@
 """FastAPI entrypoint for MedSarthi (educational prototype using synthetic data only)."""
 
 from contextlib import asynccontextmanager
+import sys
+import threading
 import uuid
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -29,10 +31,20 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    """Initialize SQLite schema + FTS5 index and private storage directory on startup."""
+    """Initialize SQLite schema + FTS5 index, storage, and background QR upload server."""
     settings.storage_path.mkdir(parents=True, exist_ok=True)
     await init_db()
-    yield
+    if settings.QR_UPLOAD_AUTO_START and "pytest" not in sys.modules:
+        from app.services.media.qr_upload_service import qr_upload_manager
+
+        threading.Thread(target=qr_upload_manager.start, daemon=True).start()
+    try:
+        yield
+    finally:
+        if "pytest" not in sys.modules:
+            from app.services.media.qr_upload_service import qr_upload_manager
+
+            qr_upload_manager.stop()
 
 
 def create_app() -> FastAPI:
