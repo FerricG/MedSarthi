@@ -17,6 +17,7 @@ import { PatientGate } from "@/app/patient/_components/PatientGate";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { EmergencyAlert, detectClientEmergencyKeywords } from "@/components/EmergencyAlert";
 import { ProvenanceCards } from "@/components/ProvenanceCards";
+import { SearchingIndicator } from "@/components/SearchingIndicator";
 import { TermLookupModal } from "@/components/TermLookupModal";
 import { VisualArtifactViewer } from "@/components/VisualArtifactViewer";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
@@ -347,9 +348,15 @@ function TalkWorkspace() {
 
                     {/* Trusted Citations & Web Research Evidence */}
                     {msg.citations && msg.citations.length > 0 && (
-                      <div className="rounded-xl border border-teal-200 dark:border-teal-800/60 bg-teal-50/50 dark:bg-teal-950/20 p-3 space-y-2 text-xs">
-                        <div className="flex items-center gap-1.5 font-bold text-teal-900 dark:text-teal-200">
-                          <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      <div
+                        className="rounded-xl border-2 p-3 space-y-2 text-xs"
+                        style={{
+                          backgroundColor: "var(--ms-prov-kb-bg)",
+                          borderColor: "var(--ms-border)",
+                        }}
+                      >
+                        <div className="flex items-center gap-1.5 font-bold" style={{ color: "var(--ms-ink)" }}>
+                          <ShieldCheck className="h-4 w-4" style={{ color: "var(--ms-primary)" }} />
                           <span>Verified Citations &amp; Trusted Sources</span>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -359,10 +366,15 @@ function TalkWorkspace() {
                               href={c.source_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-teal-200 dark:border-teal-800 bg-white dark:bg-neutral-900 text-teal-950 dark:text-teal-100 hover:border-teal-400 dark:hover:border-teal-600 transition-colors shadow-xs"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border-2 font-bold hover:opacity-90"
+                              style={{
+                                backgroundColor: "var(--ms-surface)",
+                                borderColor: "var(--ms-border)",
+                                color: "var(--ms-ink)",
+                              }}
                             >
-                              <span className="font-semibold">{c.source_name}</span>
-                              <ExternalLink className="h-3 w-3 text-neutral-400" />
+                              <span>{c.source_name}</span>
+                              <ExternalLink className="h-3 w-3 opacity-60" />
                             </a>
                           ))}
                         </div>
@@ -415,11 +427,46 @@ function TalkWorkspace() {
                       compact
                       showTranscriptLines={false}
                     />
+
+                    {/* Safety disclaimer at bottom of answer */}
+                    <p
+                      className="mt-2.5 pt-2 border-t text-xs font-semibold"
+                      style={{
+                        borderColor: "var(--ms-border)",
+                        color: "var(--ms-ink-muted)",
+                      }}
+                    >
+                      {locale === "hi"
+                        ? "AI गलतियाँ कर सकता है। क्लिनिकल मार्गदर्शन के लिए कृपया अपने डॉक्टर से परामर्श लें।"
+                        : locale === "hi-Latn"
+                        ? "AI se galti ho sakti hai. Kripya clinical guidance ke liye apne doctor se consult karein."
+                        : "AI can make mistakes. Please consult your doctor for clinical guidance."}
+                    </p>
                   </div>
                 )}
               </div>
             );
           })
+        )}
+        {sending && (
+          <div className="flex flex-col items-start space-y-1 animate-in fade-in duration-200">
+            <SearchingIndicator
+              label={
+                researchMode === "deep_research"
+                  ? "Deep researching trusted medical sources"
+                  : researchMode === "web_research"
+                  ? "Searching clinical web sources"
+                  : "Searching results"
+              }
+              sublabel={
+                researchMode === "deep_research"
+                  ? "Synthesizing PubMed, clinical trials & medical knowledge"
+                  : researchMode === "web_research"
+                  ? "Consulting verified medical sources (WHO, CDC, NHS)"
+                  : "Checking against doctor note and clinical guidance"
+              }
+            />
+          </div>
         )}
         <div ref={bottomRef} />
       </section>
@@ -439,106 +486,130 @@ function TalkWorkspace() {
       )}
 
       {/* Voice + Text Input Bar */}
-      <section className="ms-card p-5 space-y-4">
-        {/* Research & Visual Intelligence Controls */}
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl border-2 border-teal-200 dark:border-teal-800/60 bg-teal-50/50 dark:bg-teal-950/20">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-extrabold uppercase text-teal-900 dark:text-teal-200">Mode:</span>
-            <div className="inline-flex rounded-xl p-1 bg-neutral-200/70 dark:bg-neutral-800 gap-1 text-xs font-semibold">
-              <button
-                type="button"
-                onClick={() => setResearchMode("normal")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors ${
-                  researchMode === "normal"
-                    ? "bg-white dark:bg-neutral-900 text-teal-700 dark:text-teal-300 shadow-sm font-bold"
-                    : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900"
-                }`}
-              >
-                <Zap className="h-3.5 w-3.5" />
-                <span>Normal</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setResearchMode("web_research")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors ${
-                  researchMode === "web_research"
-                    ? "bg-white dark:bg-neutral-900 text-teal-700 dark:text-teal-300 shadow-sm font-bold"
-                    : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900"
-                }`}
-              >
-                <Globe className="h-3.5 w-3.5" />
-                <span>Web Research</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setResearchMode("deep_research")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors ${
-                  researchMode === "deep_research"
-                    ? "bg-white dark:bg-neutral-900 text-teal-700 dark:text-teal-300 shadow-sm font-bold"
-                    : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900"
-                }`}
-              >
-                <FlaskConical className="h-3.5 w-3.5" />
-                <span>Deep Research</span>
-              </button>
-            </div>
-          </div>
-
-          <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 dark:text-neutral-200 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={requestVisual}
-              onChange={(e) => setRequestVisual(e.target.checked)}
-              className="rounded text-teal-600 focus:ring-teal-500 h-4 w-4"
-            />
-            <ImageIcon className="h-4 w-4 text-teal-600" />
-            <span>AI Visual Diagrams</span>
-          </label>
-        </div>
-
-        <VoiceInputButton
-          language={locale}
-          disabled={sending}
-          onConfirmedTranscript={(confirmed, meta) => {
-            void submitQuestion(confirmed, {
-              modality: "voice",
-              audioId: meta.audioId,
-              sttConfirmed: meta.wasConfirmed,
-            });
-          }}
-        />
-
+      <section className="ms-card p-4 sm:p-5 space-y-3">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             void submitQuestion(inputText, { modality: "text" });
           }}
-          className="flex flex-col gap-3 sm:flex-row"
+          className="space-y-3"
         >
-          <label htmlFor="chat-input" className="sr-only">
-            Type your health question
-          </label>
-          <input
-            id="chat-input"
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            placeholder="Type your question in English, हिन्दी, or Hinglish..."
-            className="tap-target-lg flex-1 rounded-2xl border-2 px-4 py-3 text-base"
+          {/* Main Input Row: Text Input alongside Voice Button and Ask Button */}
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+            <label htmlFor="chat-input" className="sr-only">
+              Type your health question
+            </label>
+            <input
+              id="chat-input"
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="Type your question in English, हिन्दी, or Hinglish..."
+              className="tap-target-lg flex-1 rounded-2xl border-2 px-4 py-3 text-base"
+              style={{
+                backgroundColor: "var(--ms-surface-alt)",
+                borderColor: "var(--ms-border)",
+                color: "var(--ms-ink)",
+              }}
+            />
+            <div className="flex items-center gap-2 shrink-0">
+              <VoiceInputButton
+                language={locale}
+                disabled={sending}
+                onConfirmedTranscript={(confirmed, meta) => {
+                  void submitQuestion(confirmed, {
+                    modality: "voice",
+                    audioId: meta.audioId,
+                    sttConfirmed: meta.wasConfirmed,
+                  });
+                }}
+              />
+              <button
+                type="submit"
+                disabled={sending || !inputText.trim()}
+                className="ms-btn-primary tap-target-lg inline-flex items-center justify-center gap-2 px-6 disabled:opacity-50 min-w-[150px]"
+              >
+                {sending ? (
+                  <SearchingIndicator label="Searching" compact />
+                ) : (
+                  <>
+                    <Send className="h-5 w-5" aria-hidden="true" />
+                    <span>Ask MedSarthi</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Research & Visual Intelligence Controls alongside the text field */}
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 p-2.5"
             style={{
               backgroundColor: "var(--ms-surface-alt)",
               borderColor: "var(--ms-border)",
-              color: "var(--ms-ink)",
             }}
-          />
-          <button
-            type="submit"
-            disabled={sending || !inputText.trim()}
-            className="ms-btn-primary tap-target-lg inline-flex items-center justify-center gap-2 px-6 disabled:opacity-50"
           >
-            <Send className="h-5 w-5" aria-hidden="true" />
-            <span>{sending ? "Checking..." : "Ask MedSarthi"}</span>
-          </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className="text-xs font-extrabold uppercase tracking-wide"
+                style={{ color: "var(--ms-ink-muted)" }}
+              >
+                Mode:
+              </span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {(
+                  [
+                    { id: "normal", label: "Normal", icon: Zap },
+                    { id: "web_research", label: "Web Research", icon: Globe },
+                    { id: "deep_research", label: "Deep Research", icon: FlaskConical },
+                  ] as const
+                ).map((mode) => {
+                  const active = researchMode === mode.id;
+                  const Icon = mode.icon;
+                  return (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() => setResearchMode(mode.id)}
+                      aria-pressed={active}
+                      className="tap-target inline-flex items-center gap-1.5 rounded-xl border-2 px-3 py-1.5 text-xs font-extrabold transition-all"
+                      style={{
+                        backgroundColor: active ? "var(--ms-primary)" : "var(--ms-surface)",
+                        color: active ? "var(--ms-primary-ink)" : "var(--ms-ink)",
+                        borderColor: active ? "var(--ms-primary)" : "var(--ms-border)",
+                      }}
+                    >
+                      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>{mode.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <label
+              className="tap-target inline-flex items-center gap-2 rounded-xl border-2 px-3.5 py-1.5 text-xs font-extrabold cursor-pointer select-none transition-all"
+              style={{
+                backgroundColor: requestVisual ? "var(--ms-primary-soft)" : "var(--ms-surface)",
+                borderColor: requestVisual ? "var(--ms-primary)" : "var(--ms-border)",
+                color: "var(--ms-ink)",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={requestVisual}
+                onChange={(e) => setRequestVisual(e.target.checked)}
+                className="h-4 w-4 rounded cursor-pointer"
+                style={{ accentColor: "var(--ms-primary)" }}
+              />
+              <ImageIcon
+                className="h-4 w-4"
+                style={{ color: requestVisual ? "var(--ms-primary)" : "var(--ms-ink-muted)" }}
+                aria-hidden="true"
+              />
+              <span>AI Visual Diagrams</span>
+            </label>
+          </div>
         </form>
       </section>
 

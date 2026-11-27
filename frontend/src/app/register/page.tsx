@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Sparkles, Stethoscope, User, UserPlus } from "lucide-react";
+import { BackButton } from "@/components/BackButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/i18n/I18nProvider";
 import { api, ApiError } from "@/lib/api";
@@ -57,6 +58,9 @@ export default function RegisterPage() {
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
+      <div>
+        <BackButton variant="page" />
+      </div>
       <section className="ms-card p-6 sm:p-8 space-y-5">
         <div className="flex items-center gap-3">
           <UserPlus className="h-7 w-7 shrink-0" style={{ color: "var(--ms-primary)" }} aria-hidden="true" />

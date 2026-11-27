@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Check, Edit3, Mic, RotateCcw, Square, Volume2, Wrench } from "lucide-react";
+import { Check, Edit3, ExternalLink, Mic, RotateCcw, Square, UploadCloud, Volume2, Wrench } from "lucide-react";
 import { speakTextWithMithi } from "@/components/AudioPlayer";
 import { MicrophoneDiagnosticModal } from "@/components/MicrophoneDiagnosticModal";
 import { useI18n, type SupportedLocale } from "@/i18n/I18nProvider";
 import { api, ApiError } from "@/lib/api";
+import { checkMediaDevicesSupport, getAudioStream } from "@/lib/audioCapture";
 
 export interface VoiceInputButtonProps {
   language?: SupportedLocale;
@@ -75,6 +76,7 @@ export function VoiceInputButton({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const accumulatedTextRef = useRef<string>("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     return () => {
@@ -89,6 +91,42 @@ export function VoiceInputButton({
       }
     };
   }, []);
+
+  async function submitAudioFile(file: File) {
+    setIsProcessing(true);
+    setErrorMsg(null);
+    try {
+      const res = await api.speechToText(file, activeLang, file.name || "voice-query.webm");
+      if (res.metrics?.is_silent && !res.transcript_text) {
+        setErrorMsg("Uploaded audio clip was silent. Please try another recording or speak closer to your mic.");
+        return;
+      }
+      if (res.requires_confirmation || res.confidence_score < 0.78) {
+        setConfirmState({
+          transcript: res.transcript_text,
+          confidence: res.confidence_score,
+          audioId: res.audio_id,
+          alternatives: res.alternative_interpretations,
+        });
+        setEditedText(res.transcript_text);
+        setIsEditingConfirm(false);
+      } else {
+        onConfirmedTranscript(res.transcript_text, {
+          audioId: res.audio_id,
+          confidence: res.confidence_score,
+          wasConfirmed: true,
+        });
+      }
+    } catch (err) {
+      setErrorMsg(
+        err instanceof ApiError
+          ? err.message
+          : "Voice transcription unavailable. Please click 'Test Mic' or type your question below."
+      );
+    } finally {
+      setIsProcessing(false);
+    }
+  }
 
   async function submitAudioBlob(blob: Blob) {
     // If Web Speech already gave us an accurate live transcript, prioritize it!
@@ -141,13 +179,21 @@ export function VoiceInputButton({
     setErrorMsg(null);
     setLiveTranscript("");
     accumulatedTextRef.current = "";
-    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      setErrorMsg("Microphone recording is not available in this browser. Please type your question.");
+
+    const support = checkMediaDevicesSupport();
+    if (!support.hasGetUserMedia) {
+      if (!support.isSecureContext) {
+        setErrorMsg(
+          `Microphone is blocked by your browser on insecure HTTP (${support.origin}). Please access via http://localhost:3000 or click 'Upload Audio' below.`
+        );
+      } else {
+        setErrorMsg("Microphone recording is not available in this browser. Please upload an audio file or type your question.");
+      }
       return;
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await getAudioStream({ audio: true });
       streamRef.current = stream;
       chunksRef.current = [];
 
@@ -246,8 +292,18 @@ export function VoiceInputButton({
       timerRef.current = window.setInterval(() => {
         setSeconds((s) => s + 1);
       }, 1000);
-    } catch {
-      setErrorMsg("Microphone permission denied or unavailable. Please click 'Test Mic' below.");
+    } catch (err: unknown) {
+      const error = err as { name?: string; message?: string };
+      if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+        setErrorMsg("Microphone permission was denied. Please allow microphone access in your browser or click 'Test Mic'.");
+      } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+        setErrorMsg("No microphone was detected on your computer. Please connect a microphone or upload an audio file.");
+      } else if (String(error.message).includes("INSECURE_CONTEXT")) {
+        setErrorMsg("Microphone blocked: Browser requires HTTPS or http://localhost to access microphone hardware.");
+      } else {
+        setErrorMsg(error.message || "Microphone permission denied or unavailable. Please click 'Test Mic' below.");
+      }
+      setIsRecording(false);
     }
   }
 
@@ -331,8 +387,27 @@ export function VoiceInputButton({
               : t.voice.tapToSpeak}
         </span>
 
-        {/* Test Microphone Utility Button */}
-        <div className="flex items-center gap-2">
+        {/* Test Microphone & Audio Upload Utility Buttons */}
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="audio/*"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void submitAudioFile(f);
+            }}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isProcessing || isRecording}
+            className="inline-flex items-center gap-1.5 text-xs text-emerald-700 hover:underline font-bold"
+          >
+            <UploadCloud className="h-3.5 w-3.5" /> Upload Voice Note
+          </button>
+          <span className="text-gray-300">•</span>
           <button
             type="button"
             onClick={() => setShowDiagnostics(true)}
@@ -346,7 +421,7 @@ export function VoiceInputButton({
       {errorMsg && (
         <div
           role="alert"
-          className="rounded-xl border-2 px-3.5 py-2.5 text-sm font-semibold space-y-1.5"
+          className="rounded-xl border-2 px-3.5 py-2.5 text-sm font-semibold space-y-2"
           style={{
             backgroundColor: "var(--ms-prov-uncertain-bg)",
             borderColor: "var(--ms-prov-uncertain-border)",
@@ -354,13 +429,22 @@ export function VoiceInputButton({
           }}
         >
           <p>{errorMsg}</p>
-          <button
-            type="button"
-            onClick={() => setShowDiagnostics(true)}
-            className="ms-btn-secondary inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold"
-          >
-            <Wrench className="h-3.5 w-3.5" /> Open Microphone Diagnostics
-          </button>
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="ms-btn-primary inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold"
+            >
+              <UploadCloud className="h-3.5 w-3.5" /> Upload Voice Memo Instead
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDiagnostics(true)}
+              className="ms-btn-secondary inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold"
+            >
+              <Wrench className="h-3.5 w-3.5" /> Microphone Help & Diagnostics
+            </button>
+          </div>
         </div>
       )}
 

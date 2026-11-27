@@ -104,7 +104,8 @@ def lock_clinical_tokens(text: str) -> tuple[str, dict[str, str]]:
     for idx, (start, end, val) in enumerate(filtered):
         out_parts.append(text[cursor:start])
         token = f"[[LOCK_{idx}]]"
-        locked_map[token] = val
+        canonical_med = next((name for name in _PROTECTED_MEDICINE_NAMES if name.lower() == val.lower()), None)
+        locked_map[token] = canonical_med if canonical_med else val
         out_parts.append(token)
         cursor = end
     out_parts.append(text[cursor:])
@@ -113,7 +114,7 @@ def lock_clinical_tokens(text: str) -> tuple[str, dict[str, str]]:
 
 def restore_clinical_tokens(text: str, locked_map: dict[str, str]) -> tuple[str, list[str]]:
     """Pass 3a: Restore [[LOCK_n]] tokens verbatim and report any missing tokens."""
-    restored = text
+    restored = text.replace("\u202f", " ").replace("\u00a0", " ")
     missing: list[str] = []
     for token, original_val in locked_map.items():
         if token in restored:
@@ -282,6 +283,7 @@ class TranslationService:
             prefs=prefs,
         )
         translated_steps: list[str] = []
+        all_preserved_terms = list(summary_res.get("preserved_terms") or [])
         for step in steps:
             step_res = await self.translate_text(
                 session=session,
@@ -293,6 +295,14 @@ class TranslationService:
                 prefs=prefs,
             )
             translated_steps.append(step_res["translated_text"])
+            for pt in step_res.get("preserved_terms") or []:
+                if pt not in all_preserved_terms:
+                    all_preserved_terms.append(pt)
+
+        full_translated_text = summary_res["translated_text"]
+        if translated_steps:
+            full_translated_text = f"{full_translated_text}\n" + "\n".join(translated_steps)
+        full_translated_text = full_translated_text.replace("\u202f", " ").replace("\u00a0", " ")
 
         translated_prov = {
             "doctor_provided": provenance.get("doctor_provided", []),
@@ -306,12 +316,12 @@ class TranslationService:
             "uncertain_or_missing": provenance.get("uncertain_or_missing", []),
         }
         return {
-            "translated_text": summary_res["translated_text"],
+            "translated_text": full_translated_text,
             "structured_translation": translated_prov,
             "source_language": summary_res["source_language"],
             "target_language": summary_res["target_language"],
             "mode": summary_res["mode"],
-            "preserved_terms": summary_res["preserved_terms"],
+            "preserved_terms": all_preserved_terms,
             "safety": summary_res["safety"],
         }
 

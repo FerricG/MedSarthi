@@ -99,7 +99,9 @@ def _normalize_text(text: str) -> str:
     if not text:
         return ""
     s = text.translate(_DEVANAGARI_DIGITS)
+    s = s.replace("\u2010", "-").replace("\u2011", "-").replace("\u2012", "-")
     s = s.replace("\u2013", "-").replace("\u2014", "-").replace("\u2212", "-")
+    s = s.replace("\u00a0", " ").replace("\u202f", " ")
     s = s.replace("\u2019", "'").replace("\u2018", "'").replace("\u201c", '"').replace("\u201d", '"')
     s = s.replace("½", " 0.5 ").replace("¼", " 0.25 ").replace("¾", " 0.75 ")
 
@@ -449,7 +451,7 @@ _FREQ_PATTERNS: list[tuple[re.Pattern[str], int, tuple[str, ...]]] = [
     (
         re.compile(
             r"\b(?:OD|qd|q24h|once\s+(?:daily|a\s+day)|1\s+time\s+(?:daily|a\s+day)|"
-            r"every\s+24\s+hours|din\s+mei?n\s+1\s+baar|(?:har\s+)?roz\s+(?:\S+\s+){0,3}?1\s+baar|"
+            r"(?:every|each)\s+day|every\s+24\s+hours|din\s+mei?n\s+1\s+baar|(?:har\s+)?roz\s+(?:\S+\s+){0,3}?1\s+baar|"
             r"rozana\s+1\s+baar)\b|"
             r"(?:दिन\s+में|प्रतिदिन|रोज़ाना|रोजाना|रोज़?)\s+(?:\S+\s+){0,4}?1\s+बार",
             re.I,
@@ -459,7 +461,7 @@ _FREQ_PATTERNS: list[tuple[re.Pattern[str], int, tuple[str, ...]]] = [
     ),
     (
         re.compile(
-            r"\b(?:every\s+morning|roz\s+subah|har\s+subah)\b(?!\s+(?:and|aur)\s+(?:evening|night|afternoon|shaam|raat|dopahar))|"
+            r"\b(?:(?:every|each)\s+morning|roz\s+subah|har\s+subah)\b(?!\s+(?:and|aur)\s+(?:evening|night|afternoon|shaam|raat|dopahar))|"
             r"हर\s+सुबह(?!\s+और\s+(?:शाम|रात|दोपहर))",
             re.I,
         ),
@@ -530,7 +532,7 @@ _AFTER_MEAL_RE = re.compile(
     re.I,
 )
 _PRN_RE = re.compile(
-    r"\b(?:SOS|PRN|as\s+needed|when\s+needed|only\s+(?:if|when)\s+needed|zaroorat\s+(?:padne\s+)?par)\b|"
+    r"\b(?:SOS|PRN|as\s+needed|when\s+needed|only\s+(?:if|when)\s+(?:needed|you\s+have|required)|only\s+when\b|zaroorat\s+(?:padne\s+)?par)\b|"
     r"ज़रूरत\s+पड़ने\s+पर|जरूरत\s+पड़ने\s+पर|आवश्यकता\s+पड़ने\s+पर",
     re.I,
 )
@@ -1213,7 +1215,7 @@ _RETURN_WORSENS_RE = re.compile(
     re.I,
 )
 _TESTS_ADVISED_RE = re.compile(
-    r"\b(?:tests?\s+advised|advised\s+tests?|(?:cbc|x-?ray|chest\s+x-?ray|blood\s+test|hba1c|creatinine|lipid\s+profile|ecg|ultrasound)\s+advised|"
+    r"\b(?:tests?\s+advised|advised\s+tests?|monitoring\b|(?:temperature|blood\s+pressure)\s+(?:tracking|monitoring)|check\s+your\s+temperature|measure\s+your\s+blood\s+pressure|(?:cbc|x-?ray|chest\s+x-?ray|blood\s+test|hba1c|creatinine|lipid\s+profile|ecg|ultrasound)\s+advised|"
     r"repeat\s+(?:cbc|hba1c|creatinine|blood\s+test|x-?ray)|jaanch\s+karayein)\b|"
     r"जांच\s+कराएं|एक्स-रे",
     re.I,

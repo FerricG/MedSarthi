@@ -212,23 +212,97 @@ plt.close()
 """
         }
 
-    # Default versatile flowchart for processes, treatments, or questions
-    return {
-        "type": "flowchart",
-        "title": "Clinical Guidance & Evaluation Flow",
-        "description": "Structured clinical decision flow mapping observations to doctor discussion and follow-up.",
-        "renderer": "mermaid",
-        "output_format": "mermaid",
-        "script": """flowchart TD
-    A([Patient Inquiry / Observation]) --> B{Review Prescribed Note}
-    B -->|Verified in Clinical Record| C[Clear Everyday Language Explanation]
-    B -->|Not in Record or Unknown| D[Formulate Precise Questions for Doctor]
-    C --> E[Verify Red-Flag Precautions]
-    D --> F[Clinician Consultation & Review]
-    E --> G([Informed & Safe Patient Care])
-    F --> G
-    style A fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0369a1
-    style G fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#15803d
-    style B fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#b45309
+    if any(k in q for k in ("medicine", "medication", "timing", "food", "dose", "take", "pill", "tablet", "empty stomach", "after food", "before food", "antibiotic", "schedule", "when should i take", "how to take")):
+        return {
+            "type": "schedule",
+            "title": "Medication Timing & Food Schedule Guide",
+            "description": "Standard clinical timing guidelines for prescription administration with food, water, and precautions.",
+            "renderer": "matplotlib",
+            "output_format": "png",
+            "script": """import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+
+fig, ax = plt.subplots(figsize=(9, 6.5), dpi=200)
+ax.set_facecolor('#ffffff')
+fig.patch.set_facecolor('#ffffff')
+
+plt.title("Prescription Administration: Timing & Food Safety Guide", fontsize=15, fontweight='bold', pad=18, color='#0f172a')
+ax.text(0.5, 0.94, "Always prioritize specific instructions on your doctor's written prescription label.",
+        ha='center', va='center', transform=ax.transAxes, fontsize=9.5, color='#475569', style='italic')
+
+# 1. Before Food / Empty Stomach
+p1 = patches.FancyBboxPatch((0.08, 0.65), 0.84, 0.22, boxstyle="round,pad=0.03", fc='#eff6ff', ec='#3b82f6', lw=2)
+ax.add_patch(p1)
+ax.text(0.12, 0.80, "BEFORE FOOD (Empty Stomach)", fontsize=11, fontweight='bold', color='#1d4ed8')
+ax.text(0.12, 0.72, "• Take 30 to 60 minutes before breakfast or meals.\\n• Take with a full glass of plain water.\\n• Common examples: Thyroid medications, proton pump inhibitors (antacids).", fontsize=8.5, color='#1e293b', va='center')
+
+# 2. With or After Food
+p2 = patches.FancyBboxPatch((0.08, 0.38), 0.84, 0.22, boxstyle="round,pad=0.03", fc='#f0fdf4', ec='#22c55e', lw=2)
+ax.add_patch(p2)
+ax.text(0.12, 0.53, "WITH OR AFTER FOOD", fontsize=11, fontweight='bold', color='#15803d')
+ax.text(0.12, 0.45, "• Take during meals or within 15-30 minutes after eating.\\n• Protects stomach lining from irritation & enhances nutrient absorption.\\n• Common examples: NSAID pain relievers, metformin, multivitamins, antibiotics.", fontsize=8.5, color='#1e293b', va='center')
+
+# 3. Critical Safety Rules
+p3 = patches.FancyBboxPatch((0.08, 0.10), 0.84, 0.23, boxstyle="round,pad=0.03", fc='#fffbeb', ec='#f59e0b', lw=2)
+ax.add_patch(p3)
+ax.text(0.12, 0.26, "CRITICAL SAFETY & ADHERENCE RULES", fontsize=11, fontweight='bold', color='#b45309')
+ax.text(0.12, 0.17, "• Finish antibiotic courses completely even if you feel better.\\n• Do NOT crush, split, or chew extended-release (ER/XR) tablets.\\n• Never take prescriptions with alcohol, grapefruit juice, or milk unless advised.", fontsize=8.5, color='#1e293b', va='center')
+
+ax.set_xlim(0, 1)
+ax.set_ylim(0.05, 0.98)
+ax.axis('off')
+plt.tight_layout()
+plt.savefig('output.png', dpi=200, bbox_inches='tight')
+plt.close()
 """
-    }
+        }
+
+    if any(k in q for k in ("doctor", "visit", "hospital", "emergency", "red flag", "warning", "fever", "pain", "when to see", "follow up", "consultation", "worse")):
+        return {
+            "type": "flowchart",
+            "title": "Clinical Precaution & Urgent Care Decision Guide",
+            "description": "Educational guide on monitoring symptoms, when to schedule follow-ups, and when to seek urgent care.",
+            "renderer": "matplotlib",
+            "output_format": "png",
+            "script": """import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+
+fig, ax = plt.subplots(figsize=(9, 6.5), dpi=200)
+ax.set_facecolor('#ffffff')
+fig.patch.set_facecolor('#ffffff')
+
+plt.title("Symptom Monitoring: When to Contact Your Doctor", fontsize=15, fontweight='bold', pad=18, color='#0f172a')
+
+# Green: Expected progress
+p1 = patches.FancyBboxPatch((0.08, 0.67), 0.84, 0.20, boxstyle="round,pad=0.03", fc='#ecfdf5', ec='#10b981', lw=2)
+ax.add_patch(p1)
+ax.text(0.12, 0.81, "LEVEL 1: NORMAL EXPECTED RECOVERY", fontsize=11, fontweight='bold', color='#047857')
+ax.text(0.12, 0.73, "• Symptoms steadily improving; no new adverse reactions.\\n• Action: Continue prescribed course and attend scheduled follow-up.", fontsize=8.5, color='#1e293b', va='center')
+
+# Yellow: Mild concern
+p2 = patches.FancyBboxPatch((0.08, 0.40), 0.84, 0.21, boxstyle="round,pad=0.03", fc='#fefce8', ec='#eab308', lw=2)
+ax.add_patch(p2)
+ax.text(0.12, 0.54, "LEVEL 2: MILD PERSISTENCE OR NON-URGENT QUESTION", fontsize=11, fontweight='bold', color='#a16207')
+ax.text(0.12, 0.46, "• Minor side effects (mild nausea, mild dizziness), symptoms not improving after 3-4 days.\\n• Action: Call the doctor's clinic or send a patient portal message for adjustment.", fontsize=8.5, color='#1e293b', va='center')
+
+# Red: Urgent Red Flags
+p3 = patches.FancyBboxPatch((0.08, 0.10), 0.84, 0.24, boxstyle="round,pad=0.03", fc='#fef2f2', ec='#ef4444', lw=2.5)
+ax.add_patch(p3)
+ax.text(0.12, 0.27, "LEVEL 3: URGENT RED-FLAG SYMPTOMS (SEEK IMMEDIATE CARE)", fontsize=11, fontweight='bold', color='#b91c1c')
+ax.text(0.12, 0.18, "• Difficulty breathing, chest tightness, high sudden fever, widespread rash/hives,\\n  severe allergic swelling (face/lips/throat), or severe uncontrolled pain.\\n• Action: Go to nearest emergency clinic or call 108/112 immediately.", fontsize=8.5, color='#1e293b', va='center')
+
+ax.set_xlim(0, 1)
+ax.set_ylim(0.05, 0.98)
+ax.axis('off')
+plt.tight_layout()
+plt.savefig('output.png', dpi=200, bbox_inches='tight')
+plt.close()
+"""
+        }
+
+    # If no specific domain matches, do not force a generic visual — return None
+    return None

@@ -21,8 +21,7 @@ from app.services.ai.registry import ProviderRegistry, get_provider_registry
 from app.services.knowledge.retriever import KnowledgeRetriever, knowledge_retriever, list_diagrams
 
 DEFAULT_DISCLAIMER = (
-    "This explanation helps you understand your doctor's advice. "
-    "It is not a medical diagnosis or prescription. Educational prototype using synthetic data only."
+    "AI can make mistakes. Please consult your doctor for clinical guidance."
 )
 
 _DEPTH_ORDER = ("very_simple", "simple", "detailed", "deep_dive")

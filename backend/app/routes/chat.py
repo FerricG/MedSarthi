@@ -267,9 +267,11 @@ async def send_chat_message(
     )
 
     provenance = res["provenance"]
+    ai_simp = provenance.get("ai_simplified") or {}
     assistant_summary = (
-        (provenance.get("ai_simplified") or {}).get("summary")
-        or "Please consult your doctor for clinical guidance."
+        ai_simp.get("summary")
+        or _flatten_provenance_text(provenance)
+        or "I have analyzed your inquiry alongside your verified clinical information."
     )
 
     is_emerg = bool(res.get("emergency_flag") or emerg_check.get("is_emergency"))

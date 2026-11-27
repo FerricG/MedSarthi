@@ -18,6 +18,7 @@ import {
   formatLanguageLabel,
   getPatientDisplayName,
 } from "@/components/doctor/doctorHelpers";
+import { checkMediaDevicesSupport, getAudioStream } from "@/lib/audioCapture";
 import {
   api,
   ApiError,
@@ -122,12 +123,17 @@ export function AudioUploadReview({
       setErrorMsg("Please confirm patient audio consent before recording.");
       return;
     }
-    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      setErrorMsg("Browser microphone recording is unavailable. Please upload an audio file instead.");
+    const support = checkMediaDevicesSupport();
+    if (!support.hasGetUserMedia) {
+      setErrorMsg(
+        !support.isSecureContext
+          ? `Microphone blocked: Browser requires HTTPS or http://localhost (current: ${support.origin}). Please upload an audio file below.`
+          : "Browser microphone recording is unavailable. Please upload an audio file instead."
+      );
       return;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await getAudioStream({ audio: true });
       const recorder = new MediaRecorder(stream);
       chunksRef.current = [];
       recorder.ondataavailable = (ev) => {

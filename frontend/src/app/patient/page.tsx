@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, BookOpen, Check, Globe, HeartHandshake, Sparkles, Volume2 } from "lucide-react";
+import { BackButton } from "@/components/BackButton";
 import { useAccessibility } from "@/contexts/AccessibilityContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { SUPPORTED_LOCALES, type SupportedLocale, useI18n } from "@/i18n/I18nProvider";
@@ -230,6 +231,9 @@ export default function PatientModeSelectorPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
+      <div>
+        <BackButton variant="page" />
+      </div>
       <section className="ms-card p-6 sm:p-8 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <span

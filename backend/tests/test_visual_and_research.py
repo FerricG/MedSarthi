@@ -1,6 +1,7 @@
 """Tests for AI Visual Intelligence, Speech-to-Text Repair & Trusted Research Service."""
 
 import pytest
+from app.services.visual.decision_engine import visual_decision_engine
 from app.services.visual.visual_engine import validate_python_visual_ast, visual_intelligence_engine
 from app.services.research.research_service import (
     trusted_research_service,
@@ -129,3 +130,34 @@ def test_audio_metrics_silence_detection():
     metrics = measure_audio_metrics(wav_bytes)
     assert metrics["is_silent"] is True
     assert metrics["rms"] == 0.0
+
+
+def test_visual_decision_engine():
+    """Verify visual decision engine selectively triggers diagrams only when needed."""
+    # Needed: Anatomy
+    needed, reason = visual_decision_engine.should_generate_visual("How does the human heart pump blood?")
+    assert needed is True
+    assert "anatomy" in reason
+
+    # Needed: Explicit diagram request
+    needed, reason = visual_decision_engine.should_generate_visual("draw a diagram of blood circulation")
+    assert needed is True
+    assert "explicit" in reason
+
+    # Needed: Physics / science
+    needed, reason = visual_decision_engine.should_generate_visual("Explain ray optics focal point")
+    assert needed is True
+    assert "scientific" in reason
+
+    # NOT needed: Casual greeting
+    needed, reason = visual_decision_engine.should_generate_visual("hello")
+    assert needed is False
+
+    # NOT needed: Simple question
+    needed, reason = visual_decision_engine.should_generate_visual("Can I drink water with this medicine?")
+    assert needed is False
+
+    # NOT needed: Administrative question
+    needed, reason = visual_decision_engine.should_generate_visual("what is my doctor's name")
+    assert needed is False
+

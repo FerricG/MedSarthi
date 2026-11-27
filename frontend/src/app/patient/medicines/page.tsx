@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   ExternalLink,
@@ -14,6 +14,7 @@ import { PatientGate } from "@/app/patient/_components/PatientGate";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { DiagramViewer } from "@/components/DiagramViewer";
 import { ProvenanceCards } from "@/components/ProvenanceCards";
+import { SearchingIndicator } from "@/components/SearchingIndicator";
 import { useI18n } from "@/i18n/I18nProvider";
 import {
   api,
@@ -23,6 +24,64 @@ import {
   type MedicineExplanationResult,
 } from "@/lib/api";
 
+const POPULAR_MEDICINES: Array<{
+  name: string;
+  category: string;
+  aliases: string[];
+}> = [
+  { name: "Paracetamol", category: "Fever & Pain Relief", aliases: ["Dolo 650", "Dolo", "Crocin", "Calpol", "Acetaminophen", "PCM"] },
+  { name: "Ibuprofen", category: "Pain & Swelling Reliever", aliases: ["Combiflam", "Brufen", "Advil", "Motrin", "Ibugesic"] },
+  { name: "Pantoprazole", category: "Acidity & Gas Relief", aliases: ["Pan 40", "Pan40", "Pantocid", "Pantosec", "Pantodac"] },
+  { name: "Omeprazole", category: "Stomach Acid Reducer", aliases: ["Omez", "Prilosec"] },
+  { name: "Cetirizine", category: "Allergy, Cold & Sneezing", aliases: ["Cetzine", "Okacet", "Zyrtec", "Alerid"] },
+  { name: "Levocetirizine", category: "Runny Nose & Allergy", aliases: ["Levocet", "Vozet", "L-Cet"] },
+  { name: "Montelukast", category: "Asthma & Chest Congestion", aliases: ["Montek LC", "Montair LC", "Singulair"] },
+  { name: "Azithromycin", category: "Antibiotic for Infections", aliases: ["Azithral", "Azee", "Zithromax"] },
+  { name: "Amoxicillin", category: "Antibiotic for Bacterial Illness", aliases: ["Mox", "Novamox", "Amoxil", "Augmentin"] },
+  { name: "Cefixime", category: "Antibiotic", aliases: ["Taxim-O", "Zifi", "Mahacef"] },
+  { name: "Metformin", category: "Blood Sugar Control (Diabetes)", aliases: ["Glycomet", "Glucophage", "Metfor"] },
+  { name: "Amlodipine", category: "Blood Pressure Control", aliases: ["Amlong", "Amlokind", "Norvasc"] },
+  { name: "Atorvastatin", category: "Cholesterol Management", aliases: ["Atorva", "Lipitor", "Storvas"] },
+  { name: "Telmisartan", category: "High Blood Pressure", aliases: ["Telma", "Telmikind", "Micardis"] },
+  { name: "Losartan", category: "Blood Pressure", aliases: ["Losacar", "Cozaar"] },
+  { name: "Aspirin", category: "Blood Thinner & Heart Health", aliases: ["Ecosprin", "Disprin", "ASA"] },
+  { name: "Diclofenac", category: "Joint Pain & Inflammation", aliases: ["Voveran", "Voltaren"] },
+  { name: "Ondansetron", category: "Nausea & Vomiting Relief", aliases: ["Emeset", "Zofran", "Vomikind"] },
+  { name: "Ranitidine", category: "Heartburn & Acidity", aliases: ["Rantac", "Zantac"] },
+  { name: "Salbutamol", category: "Breathing Inhaler", aliases: ["Asthalin", "Ventolin"] },
+];
+
+function getLocalInstantMatches(query: string): KBTermResult[] {
+  const norm = query.trim().toLowerCase();
+  if (!norm) return [];
+  const hits: KBTermResult[] = [];
+  const seen = new Set<string>();
+
+  for (const item of POPULAR_MEDICINES) {
+    const nameMatch = item.name.toLowerCase().includes(norm);
+    const aliasMatch = item.aliases.some((a) => a.toLowerCase().includes(norm));
+    if (nameMatch || aliasMatch) {
+      if (!seen.has(item.name.toLowerCase())) {
+        seen.add(item.name.toLowerCase());
+        hits.push({
+          id: `med_${item.name.toLowerCase()}`,
+          entry_type: "medicine",
+          canonical_name: item.name,
+          slug: item.name.toLowerCase().replace(/\s+/g, "-"),
+          aliases: item.aliases,
+          body_system: "general",
+          simple_en: `${item.name} (${item.category})`,
+          detailed_en: `${item.name} is commonly used for ${item.category}. Also known as ${item.aliases.join(", ")}.`,
+          localized_name: item.name,
+          source_name: "Verified Medical Knowledge",
+          source_url: "https://medlineplus.gov",
+        });
+      }
+    }
+  }
+  return hits;
+}
+
 function MedicinesWorkspace() {
   const { t, locale } = useI18n();
 
@@ -31,10 +90,23 @@ function MedicinesWorkspace() {
   const [explained, setExplained] = useState<MedicineExplanationResult | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<KBTermResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [dots, setDots] = useState(".");
 
   const [loading, setLoading] = useState(true);
   const [explaining, setExplaining] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const explanationCacheRef = useRef<Map<string, MedicineExplanationResult>>(new Map());
+
+  // Continuous moving dots animation timer for the loading indicator
+  useEffect(() => {
+    if (!searching && !explaining) return;
+    const interval = setInterval(() => {
+      setDots((prev) => (prev.length >= 3 ? "." : prev + "."));
+    }, 280);
+    return () => clearInterval(interval);
+  }, [searching, explaining]);
 
   useEffect(() => {
     let active = true;
@@ -65,8 +137,15 @@ function MedicinesWorkspace() {
 
   async function explainSelected(med: MedicationListItem, langOverride = locale) {
     setSelectedMed(med);
-    setExplaining(true);
     setErrorMsg(null);
+
+    const cacheKey = `${med.medicine_name.trim().toLowerCase()}_${langOverride}`;
+    if (explanationCacheRef.current.has(cacheKey)) {
+      setExplained(explanationCacheRef.current.get(cacheKey)!);
+      return;
+    }
+
+    setExplaining(true);
     try {
       const raw = await api.explainMedicine({
         medicine_name: med.medicine_name,
@@ -83,7 +162,7 @@ function MedicinesWorkspace() {
             ? [{ source_name: g.source_name, source_url: g.source_url }]
             : []
       );
-      setExplained({
+      const computed: MedicineExplanationResult = {
         ...raw,
         drug_class: raw.drug_class ?? mp.drug_category,
         what_it_is:
@@ -106,7 +185,9 @@ function MedicinesWorkspace() {
         questions_for_doctor: raw.questions_for_doctor ?? mp.questions_for_doctor ?? [],
         citations: raw.citations ?? citationsFromProv,
         diagram: raw.diagram ?? raw.visual_diagrams?.[0] ?? null,
-      });
+      };
+      explanationCacheRef.current.set(cacheKey, computed);
+      setExplained(computed);
     } catch (err) {
       setErrorMsg(err instanceof ApiError ? err.message : "Could not explain this medicine.");
     } finally {
@@ -114,15 +195,79 @@ function MedicinesWorkspace() {
     }
   }
 
-  async function handleSearchMedicine(e: React.FormEvent) {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-    try {
-      const res = await api.searchMedicines(searchQuery.trim(), locale, 5);
-      setSearchResults(res);
-    } catch {
-      setSearchResults([]);
+  async function handleSearchMedicine(e?: React.FormEvent, directTerm?: string) {
+    if (e) e.preventDefault();
+    const query = (directTerm ?? searchQuery).trim();
+    if (!query) return;
+
+    setSearching(true);
+    // 1. Instant local index lookup (0ms response)
+    const localMatches = getLocalInstantMatches(query);
+    if (localMatches.length > 0) {
+      setSearchResults(localMatches);
     }
+
+    try {
+      // 2. Fetch backend matches concurrently
+      const apiResults = await api.searchMedicines(query, locale, 5);
+      const combined = [...localMatches];
+      for (const item of apiResults) {
+        if (!combined.some((c) => c.canonical_name.toLowerCase() === item.canonical_name.toLowerCase())) {
+          combined.push(item);
+        }
+      }
+      if (combined.length === 0) {
+        // Fallback candidate card so user always has an instant option to tap
+        const clean = query.charAt(0).toUpperCase() + query.slice(1);
+        combined.push({
+          id: `med_${clean.toLowerCase()}`,
+          entry_type: "medicine",
+          canonical_name: clean,
+          slug: clean.toLowerCase().replace(/\s+/g, "-"),
+          aliases: [],
+          body_system: "general",
+          simple_en: `${clean} — Tap to learn educational guidance, general uses, and precautions.`,
+          detailed_en: `${clean} is a therapeutic medicine. Always confirm dosages and directions with your doctor.`,
+          localized_name: clean,
+          source_name: "Verified Medical Knowledge",
+          source_url: "https://medlineplus.gov",
+        });
+      }
+      setSearchResults(combined);
+    } catch {
+      if (localMatches.length === 0) {
+        const clean = query.charAt(0).toUpperCase() + query.slice(1);
+        setSearchResults([
+          {
+            id: `med_${clean.toLowerCase()}`,
+            entry_type: "medicine",
+            canonical_name: clean,
+            slug: clean.toLowerCase().replace(/\s+/g, "-"),
+            aliases: [],
+            body_system: "general",
+            simple_en: `${clean} — Tap to learn educational guidance, general uses, and precautions.`,
+            detailed_en: `${clean} is a therapeutic medicine. Always confirm dosages and directions with your doctor.`,
+            localized_name: clean,
+            source_name: "Verified Medical Knowledge",
+            source_url: "https://medlineplus.gov",
+          },
+        ]);
+      }
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function handleQuickSearch(name: string) {
+    setSearchQuery(name);
+    void handleSearchMedicine(undefined, name);
+    void explainSelected({
+      medicine_name: name,
+      dose: "",
+      frequency: "General Medical Knowledge Lookup",
+      warnings: [],
+      locked_instruction: "",
+    });
   }
 
   return (
@@ -187,6 +332,16 @@ function MedicinesWorkspace() {
 
         {/* Search General Medicine KB */}
         <section className="ms-card p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-extrabold flex items-center gap-2">
+              <Search className="h-4 w-4" style={{ color: "var(--ms-primary)" }} aria-hidden="true" />
+              <span>Search &amp; Learn Any Medicine</span>
+            </h2>
+            <span className="text-xs font-semibold" style={{ color: "var(--ms-ink-muted)" }}>
+              Instant lookup across common generic and brand names
+            </span>
+          </div>
+
           <form onSubmit={(e) => void handleSearchMedicine(e)} className="flex flex-wrap gap-2">
             <label htmlFor="med-search" className="sr-only">
               Search a medicine name
@@ -195,8 +350,17 @@ function MedicinesWorkspace() {
               id="med-search"
               type="search"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Look up any medicine (e.g., Metformin, Azithromycin, Paracetamol)..."
+              onChange={(e) => {
+                const val = e.target.value;
+                setSearchQuery(val);
+                if (val.trim().length >= 2) {
+                  const instant = getLocalInstantMatches(val);
+                  if (instant.length > 0) {
+                    setSearchResults(instant);
+                  }
+                }
+              }}
+              placeholder="Look up any medicine (e.g., Ibuprofen, Dolo, Pan 40, Metformin, Cetirizine)..."
               className="tap-target flex-1 rounded-xl border-2 px-4 py-2.5 text-sm"
               style={{
                 backgroundColor: "var(--ms-surface-alt)",
@@ -204,36 +368,110 @@ function MedicinesWorkspace() {
                 color: "var(--ms-ink)",
               }}
             />
-            <button type="submit" className="ms-btn-secondary tap-target inline-flex items-center gap-2 px-4 text-sm">
+            <button
+              type="submit"
+              disabled={searching || !searchQuery.trim()}
+              className="ms-btn-secondary tap-target inline-flex items-center justify-center gap-2 px-4 text-sm min-w-[155px]"
+            >
               <Search className="h-4 w-4" aria-hidden="true" />
               <span>Search Medicine</span>
             </button>
           </form>
 
+          {/* Continuous Moving Dots Loading Indicator just below the Search Medicine button */}
+          {(searching || explaining) && (
+            <div
+              className="flex items-center gap-2 pt-1 text-sm font-extrabold"
+              style={{ color: "var(--ms-primary)" }}
+              role="status"
+              aria-live="polite"
+            >
+              <span>loading{dots}</span>
+              <span className="inline-flex items-center gap-1.5" aria-hidden="true">
+                <span
+                  className="h-2 w-2 rounded-full animate-bounce [animation-delay:-0.32s]"
+                  style={{ backgroundColor: "var(--ms-primary)" }}
+                />
+                <span
+                  className="h-2 w-2 rounded-full animate-bounce [animation-delay:-0.16s]"
+                  style={{ backgroundColor: "var(--ms-primary)" }}
+                />
+                <span
+                  className="h-2 w-2 rounded-full animate-bounce"
+                  style={{ backgroundColor: "var(--ms-primary)" }}
+                />
+              </span>
+              <span className="text-xs font-semibold" style={{ color: "var(--ms-ink-muted)" }}>
+                {explaining
+                  ? `Gathering clinical guidance for ${selectedMed?.medicine_name || "medicine"}...`
+                  : "Searching verified medicine knowledge..."}
+              </span>
+            </div>
+          )}
+
+          {/* Quick Popular Medicines Chips */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "var(--ms-ink-muted)" }}>
+              Quick Tap:
+            </span>
+            {[
+              "Paracetamol (Dolo)",
+              "Ibuprofen (Combiflam)",
+              "Pantoprazole (Pan 40)",
+              "Cetirizine",
+              "Azithromycin",
+              "Amoxicillin",
+              "Metformin",
+              "Atorvastatin",
+            ].map((quickName) => (
+              <button
+                key={quickName}
+                type="button"
+                disabled={searching || explaining}
+                onClick={() => handleQuickSearch(quickName.split(" ")[0])}
+                className="tap-target inline-flex items-center gap-1 rounded-lg border-2 px-2.5 py-1 text-xs font-extrabold transition-all hover:scale-105"
+                style={{
+                  backgroundColor: "var(--ms-surface)",
+                  borderColor: "var(--ms-border)",
+                  color: "var(--ms-ink)",
+                }}
+              >
+                <Pill className="h-3.5 w-3.5" style={{ color: "var(--ms-primary)" }} aria-hidden="true" />
+                <span>{quickName}</span>
+              </button>
+            ))}
+          </div>
+
           {searchResults.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {searchResults.map((item) => (
-                <button
-                  key={item.slug}
-                  type="button"
-                  onClick={() =>
-                    void explainSelected({
-                      medicine_name: item.canonical_name,
-                      dose: "",
-                      frequency: "No doctor prescription attached",
-                      warnings: [],
-                      locked_instruction: "",
-                    })
-                  }
-                  className="tap-target rounded-xl border-2 px-3.5 py-2 text-sm font-bold"
-                  style={{
-                    backgroundColor: "var(--ms-surface-alt)",
-                    borderColor: "var(--ms-primary)",
-                  }}
-                >
-                  {item.canonical_name}
-                </button>
-              ))}
+            <div className="space-y-1.5 pt-1">
+              <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "var(--ms-ink-muted)" }}>
+                Search Results (Tap to Explain):
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {searchResults.map((item) => (
+                  <button
+                    key={item.slug}
+                    type="button"
+                    onClick={() =>
+                      void explainSelected({
+                        medicine_name: item.canonical_name,
+                        dose: "",
+                        frequency: "General Medical Knowledge Lookup",
+                        warnings: [],
+                        locked_instruction: "",
+                      })
+                    }
+                    className="tap-target rounded-xl border-2 px-3.5 py-2 text-sm font-bold transition-all hover:scale-105"
+                    style={{
+                      backgroundColor: "var(--ms-surface-alt)",
+                      borderColor: "var(--ms-primary)",
+                      color: "var(--ms-ink)",
+                    }}
+                  >
+                    {item.canonical_name}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </section>
@@ -440,6 +678,22 @@ function MedicinesWorkspace() {
               diagram={explained.diagram}
               language={locale}
             />
+
+            {/* Safety disclaimer at bottom of page */}
+            <div
+              className="rounded-xl border p-3 text-center text-xs font-semibold"
+              style={{
+                backgroundColor: "var(--ms-surface-alt)",
+                borderColor: "var(--ms-border)",
+                color: "var(--ms-ink-muted)",
+              }}
+            >
+              {locale === "hi"
+                ? "AI गलतियाँ कर सकता है। क्लिनिकल मार्गदर्शन के लिए कृपया अपने डॉक्टर से परामर्श लें।"
+                : locale === "hi-Latn"
+                ? "AI se galti ho sakti hai. Kripya clinical guidance ke liye apne doctor se consult karein."
+                : "AI can make mistakes. Please consult your doctor for clinical guidance."}
+            </div>
           </div>
         )}
       </div>

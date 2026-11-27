@@ -145,7 +145,7 @@ class LLMTaskRequest(BaseModel):
     user_prompt: str
     payload: dict[str, Any] = Field(default_factory=dict)
     temperature: float = 0.1
-    max_tokens: int = 1600
+    max_tokens: int = 4096
     response_schema: dict[str, Any] | None = None
 
 

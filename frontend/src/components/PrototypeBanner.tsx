@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { AlertTriangle, Contrast, Globe, HeartPulse, Minus, Plus, RotateCcw } from "lucide-react";
+import { BackButton } from "@/components/BackButton";
 import { Navbar } from "@/components/Navbar";
 import { useAccessibility } from "@/contexts/AccessibilityContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -98,7 +99,9 @@ export function AccessibilityTopBar() {
     >
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href={user?.role === "patient" ? "/patient" : user?.role === "doctor" ? "/doctor" : "/"} className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5">
+            <BackButton variant="header" />
+            <Link href={user?.role === "patient" ? "/patient" : user?.role === "doctor" ? "/doctor" : "/"} className="flex items-center gap-2.5">
             <div
               className="flex h-11 w-11 items-center justify-center rounded-xl border-2"
               style={{
@@ -116,8 +119,9 @@ export function AccessibilityTopBar() {
               </span>
             </div>
           </Link>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
             {/* Quick Language Pills + Full 11-Language Selector */}
             <div
               className="flex flex-wrap items-center gap-1.5 rounded-xl border-2 p-1"

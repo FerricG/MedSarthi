@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -18,58 +18,15 @@ import {
   UserCheck,
   Volume2,
 } from "lucide-react";
+import { useAccessibility } from "@/contexts/AccessibilityContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useI18n } from "@/i18n/I18nProvider";
+import { SUPPORTED_LOCALES, type SupportedLocale, useI18n } from "@/i18n/I18nProvider";
 import { api, ApiError, type HealthResponseData } from "@/lib/api";
-
-const JUDGE_WALKTHROUGH_STEPS = [
-  {
-    step: 1,
-    title: "7-Step Friendly Onboarding",
-    desc: "Experience age-aware defaults (age 64 -> XL text + 0.75x audio), zero jargon, and 'Hear this question'.",
-    href: "/onboarding?demo=1",
-  },
-  {
-    step: 2,
-    title: "Doctor's Note (Locked Clinical Source)",
-    desc: "Inspect Dr. Priya Mehta's immutable note (Acute Nasopharyngitis, Hypertension, Paracetamol, Amlodipine).",
-    href: "/patient/instructions",
-  },
-  {
-    step: 3,
-    title: "4-Category Provenance & Simple Explanation",
-    desc: "See Doctor-Provided, In Simple Words, General Medical Knowledge (with citations), and Unknown items clearly separated.",
-    href: "/patient/instructions",
-  },
-  {
-    step: 4,
-    title: "One-Tap Hindi / Hinglish Switch",
-    desc: "Switch between English, हिन्दी, and Hinglish without losing consultation context or altering dosages.",
-    href: "/patient/instructions",
-  },
-  {
-    step: 5,
-    title: "Listen with Live Sentence Highlighting",
-    desc: "Play audio at 0.75x–1.25x speed with synchronized line-by-line highlighting.",
-    href: "/patient/instructions",
-  },
-  {
-    step: 6,
-    title: "Progressive 'Why did this happen?' & 'Explain everything'",
-    desc: "Tap progressive Explain More buttons or tap underlined medical terms for curated SVG diagrams.",
-    href: "/patient/instructions",
-  },
-  {
-    step: 7,
-    title: "Ask: 'Kya iska matlab mujhe pneumonia hai?'",
-    desc: "Test MedSarthi's grounded Hinglish Q&A safety boundary against the doctor's URI note.",
-    href: "/patient/talk?q=Kya%20iska%20matlab%20mujhe%20pneumonia%20hai%3F",
-  },
-];
 
 export default function HomePage() {
   const router = useRouter();
-  const { t } = useI18n();
+  const { locale, setLocale, t, formatMessage } = useI18n();
+  const { setLanguage } = useAccessibility();
   const { user, patientProfile, doctorProfile, isLoading, guestLogin, refreshMe } = useAuth();
 
   const [health, setHealth] = useState<HealthResponseData | null>(null);
@@ -77,6 +34,54 @@ export default function HomePage() {
   const [submitting, setSubmitting] = useState(false);
   const [demoError, setDemoError] = useState<string | null>(null);
   const [showWalkthrough, setShowWalkthrough] = useState(false);
+
+  const walkthroughSteps = useMemo(
+    () => [
+      {
+        step: 1,
+        title: t.landing.demo.steps.step1Title,
+        desc: t.landing.demo.steps.step1Desc,
+        href: "/onboarding?demo=1",
+      },
+      {
+        step: 2,
+        title: t.landing.demo.steps.step2Title,
+        desc: t.landing.demo.steps.step2Desc,
+        href: "/patient/instructions",
+      },
+      {
+        step: 3,
+        title: t.landing.demo.steps.step3Title,
+        desc: t.landing.demo.steps.step3Desc,
+        href: "/patient/instructions",
+      },
+      {
+        step: 4,
+        title: t.landing.demo.steps.step4Title,
+        desc: t.landing.demo.steps.step4Desc,
+        href: "/patient/instructions",
+      },
+      {
+        step: 5,
+        title: t.landing.demo.steps.step5Title,
+        desc: t.landing.demo.steps.step5Desc,
+        href: "/patient/instructions",
+      },
+      {
+        step: 6,
+        title: t.landing.demo.steps.step6Title,
+        desc: t.landing.demo.steps.step6Desc,
+        href: "/patient/instructions",
+      },
+      {
+        step: 7,
+        title: t.landing.demo.steps.step7Title,
+        desc: t.landing.demo.steps.step7Desc,
+        href: "/patient/talk?q=Kya%20iska%20matlab%20mujhe%20pneumonia%20hai%3F",
+      },
+    ],
+    [t]
+  );
 
   useEffect(() => {
     api
@@ -129,6 +134,14 @@ export default function HomePage() {
     }
   }
 
+  function handleLanguageSwitch(next: SupportedLocale) {
+    setLocale(next);
+    setLanguage(next);
+    if (user?.role === "patient") {
+      void api.updatePreferences({ preferred_language: next }).catch(() => {});
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Live Backend Status Strip */}
@@ -165,9 +178,12 @@ export default function HomePage() {
               className="ms-btn-primary tap-target inline-flex items-center gap-2 px-4 text-sm"
             >
               <span>
-                {user.role === "patient"
-                  ? `Continue as ${patientProfile?.name || "Patient"}`
-                  : `Continue as ${doctorProfile?.full_name || "Doctor"}`}
+                {formatMessage(t.landing.continueAs, {
+                  name:
+                    user.role === "patient"
+                      ? patientProfile?.name || t.auth.rolePatient
+                      : doctorProfile?.full_name || t.auth.roleDoctor,
+                })}
               </span>
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
@@ -179,7 +195,7 @@ export default function HomePage() {
                 onClick={() => void launchGuest("patient")}
                 className="ms-btn-secondary tap-target inline-flex items-center gap-1.5 px-4 text-sm"
               >
-                <span>Use Without Account</span>
+                <span>{t.landing.useWithoutAccount}</span>
               </button>
               <Link href="/login" className="ms-btn-secondary tap-target inline-flex items-center px-4 text-sm">
                 {t.nav.signIn}
@@ -189,6 +205,54 @@ export default function HomePage() {
               </Link>
             </>
           )}
+        </div>
+      </section>
+
+      {/* Universal Language Selector Bar */}
+      <section className="ms-card p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Languages className="h-5 w-5 shrink-0" style={{ color: "var(--ms-primary)" }} aria-hidden="true" />
+          <span className="font-bold text-sm">
+            {locale === "hi"
+              ? "भाषा चुनें:"
+              : locale === "hi-Latn"
+              ? "Bhasha chunein:"
+              : "Select Language / अपनी भाषा चुनें:"}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {SUPPORTED_LOCALES.slice(0, 5).map((opt) => (
+            <button
+              key={opt.code}
+              type="button"
+              onClick={() => handleLanguageSwitch(opt.code)}
+              className="tap-target rounded-full px-3 py-1 text-xs font-bold transition-all"
+              style={{
+                backgroundColor: locale === opt.code ? "var(--ms-primary)" : "var(--ms-primary-soft)",
+                color: locale === opt.code ? "#ffffff" : "var(--ms-ink)",
+                border: "1px solid var(--ms-primary)",
+              }}
+            >
+              {opt.nativeLabel}
+            </button>
+          ))}
+          <select
+            value={locale}
+            aria-label="All supported languages"
+            onChange={(e) => handleLanguageSwitch(e.target.value as SupportedLocale)}
+            className="rounded-full border px-3 py-1 text-xs font-bold"
+            style={{
+              borderColor: "var(--ms-primary)",
+              backgroundColor: "var(--ms-card-bg)",
+              color: "var(--ms-ink)",
+            }}
+          >
+            {SUPPORTED_LOCALES.map((opt) => (
+              <option key={opt.code} value={opt.code}>
+                {opt.nativeLabel} ({opt.label})
+              </option>
+            ))}
+          </select>
         </div>
       </section>
 
@@ -204,15 +268,13 @@ export default function HomePage() {
             }}
           >
             <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Doctor-Anchored Clinical Communication Bridge — Not a Generic Chatbot</span>
+            <span>{t.landing.heroBadge}</span>
           </span>
           <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-            Understand your doctor&apos;s advice clearly, calmly, and in your own language.
+            {t.landing.heroTitle}
           </h1>
           <p className="text-base leading-relaxed" style={{ color: "var(--ms-ink-muted)" }}>
-            MedSarthi explains and translates only what your doctor provided alongside verified medical
-            knowledge—never guessing unreadable prescriptions, never changing dosages, and adapting text
-            size and voice playback to your comfort.
+            {t.landing.heroSubtitle}
           </p>
         </div>
 
@@ -220,33 +282,33 @@ export default function HomePage() {
           <div className="rounded-xl border-2 p-3.5 space-y-1" style={{ borderColor: "var(--ms-prov-doctor-border)", backgroundColor: "var(--ms-prov-doctor-bg)" }}>
             <div className="flex items-center gap-2 font-extrabold text-sm">
               <Stethoscope className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>4-Category Provenance</span>
+              <span>{t.landing.features.provenanceTitle}</span>
             </div>
-            <p className="text-xs">Doctor words, simple AI summary, verified medical facts, and unknowns kept visually separate.</p>
+            <p className="text-xs">{t.landing.features.provenanceDesc}</p>
           </div>
 
           <div className="rounded-xl border-2 p-3.5 space-y-1" style={{ borderColor: "var(--ms-prov-ai-border)", backgroundColor: "var(--ms-prov-ai-bg)" }}>
             <div className="flex items-center gap-2 font-extrabold text-sm">
               <Languages className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>English • हिन्दी • Hinglish</span>
+              <span>{t.landing.features.multilingualTitle}</span>
             </div>
-            <p className="text-xs">One-tap language switch preserving consultation context and exact medicine numbers.</p>
+            <p className="text-xs">{t.landing.features.multilingualDesc}</p>
           </div>
 
           <div className="rounded-xl border-2 p-3.5 space-y-1" style={{ borderColor: "var(--ms-prov-kb-border)", backgroundColor: "var(--ms-prov-kb-bg)" }}>
             <div className="flex items-center gap-2 font-extrabold text-sm">
               <Volume2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>Accessible Voice & WCAG AAA</span>
+              <span>{t.landing.features.accessibleVoiceTitle}</span>
             </div>
-            <p className="text-xs">64px+ touch targets, 0.75x–1.25x audio highlighting, high contrast, and Hinglish voice confirmation.</p>
+            <p className="text-xs">{t.landing.features.accessibleVoiceDesc}</p>
           </div>
 
           <div className="rounded-xl border-2 p-3.5 space-y-1" style={{ borderColor: "var(--ms-prov-uncertain-border)", backgroundColor: "var(--ms-prov-uncertain-bg)" }}>
             <div className="flex items-center gap-2 font-extrabold text-sm">
               <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>Deterministic Integrity Gate</span>
+              <span>{t.landing.features.integrityGateTitle}</span>
             </div>
-            <p className="text-xs">Verifies doses, units, frequencies, and negations—and refuses to guess unclear OCR scans.</p>
+            <p className="text-xs">{t.landing.features.integrityGateDesc}</p>
           </div>
         </div>
       </section>
@@ -257,7 +319,7 @@ export default function HomePage() {
           <div>
             <h2 className="text-2xl font-extrabold">{t.auth.demoSectionTitle}</h2>
             <p className="text-sm" style={{ color: "var(--ms-ink-muted)" }}>
-              Instant synthetic login (zero external API keys required) or step through the 7-part judge walkthrough.
+              {t.landing.demo.subtitle}
             </p>
           </div>
           <button
@@ -296,7 +358,7 @@ export default function HomePage() {
               <span>
                 <span className="block text-base font-extrabold">{t.auth.demoPatientBtn}</span>
                 <span className="block text-xs font-medium opacity-90">
-                  Opens 6-action Patient Home with seeded URI + BP consultation &amp; lab report
+                  {t.landing.demo.patientDesc}
                 </span>
               </span>
             </span>
@@ -312,9 +374,9 @@ export default function HomePage() {
             <span className="flex items-center gap-3">
               <Sparkles className="h-7 w-7 shrink-0" aria-hidden="true" />
               <span>
-                <span className="block text-base font-extrabold">Use Without Account (Guest)</span>
+                <span className="block text-base font-extrabold">{t.landing.useWithoutAccountGuest}</span>
                 <span className="block text-xs font-medium" style={{ color: "var(--ms-ink-muted)" }}>
-                  Instant private workspace — upload reports, ask questions &amp; listen with no sign-up
+                  {t.landing.guestWorkspaceDesc}
                 </span>
               </span>
             </span>
@@ -332,7 +394,7 @@ export default function HomePage() {
               <span>
                 <span className="block text-base font-extrabold">{t.auth.demoDoctorBtn}</span>
                 <span className="block text-xs font-medium" style={{ color: "var(--ms-ink-muted)" }}>
-                  Opens Clinician Workspace with integrity check, OCR/audio tools &amp; approve/share
+                  {t.landing.demo.doctorDesc}
                 </span>
               </span>
             </span>
@@ -349,20 +411,20 @@ export default function HomePage() {
             }}
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-lg font-extrabold">Guided 7-Step Judge Demo Walkthrough</h3>
+              <h3 className="text-lg font-extrabold">{t.landing.demo.walkthroughTitle}</h3>
               <button
                 type="button"
                 disabled={submitting}
                 onClick={() => void launchDemo("patient", "/onboarding?demo=1")}
                 className="ms-btn-primary tap-target inline-flex items-center gap-2 px-4 text-sm"
               >
-                <span>Launch Step 1 Now</span>
+                <span>{t.landing.demo.launchStep1}</span>
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
 
             <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-              {JUDGE_WALKTHROUGH_STEPS.map((item) => (
+              {walkthroughSteps.map((item) => (
                 <button
                   key={item.step}
                   type="button"
@@ -378,7 +440,7 @@ export default function HomePage() {
                         color: "var(--ms-ink)",
                       }}
                     >
-                      Step {item.step}
+                      {formatMessage(t.landing.demo.stepLabel, { step: item.step })}
                     </span>
                     <h4 className="text-sm font-extrabold">{item.title}</h4>
                     <p className="text-xs leading-snug" style={{ color: "var(--ms-ink-muted)" }}>
@@ -386,7 +448,7 @@ export default function HomePage() {
                     </p>
                   </div>
                   <span className="inline-flex items-center gap-1 text-xs font-bold" style={{ color: "var(--ms-primary)" }}>
-                    <span>Open step</span>
+                    <span>{t.landing.demo.openStep}</span>
                     <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                   </span>
                 </button>
@@ -407,24 +469,7 @@ export default function HomePage() {
           { icon: BookOpen, title: t.patientHome.actions.history, desc: t.patientHome.actions.historyHint },
         ].map((card, i) => {
           const Icon = card.icon;
-          async function launchGuest(role: "patient" | "doctor" = "patient") {
-    setDemoError(null);
-    setSubmitting(true);
-    try {
-      await guestLogin(role);
-      router.push(role === "patient" ? "/patient" : "/doctor");
-    } catch (err) {
-      setDemoError(
-        err instanceof ApiError
-          ? err.message
-          : "Unable to connect to backend for guest session. Ensure uvicorn is running on port 8000."
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
+          return (
             <div key={i} className="ms-card flex items-start gap-3 p-4">
               <span
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border"
@@ -449,3 +494,4 @@ export default function HomePage() {
     </div>
   );
 }
+

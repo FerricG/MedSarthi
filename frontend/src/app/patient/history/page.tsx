@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, BookOpen, Calendar, FileText, History, MessageCircle, Search, Stethoscope } from "lucide-react";
 import { PatientGate } from "@/app/patient/_components/PatientGate";
+import { SearchingIndicator } from "@/components/SearchingIndicator";
 import { TermLookupModal } from "@/components/TermLookupModal";
 import { useI18n } from "@/i18n/I18nProvider";
 import {
@@ -24,6 +25,7 @@ function HistoryWorkspace() {
 
   const [termQuery, setTermQuery] = useState("");
   const [termResults, setTermResults] = useState<KBTermResult[]>([]);
+  const [searching, setSearching] = useState(false);
   const [activeTerm, setActiveTerm] = useState<string | null>(null);
 
   useEffect(() => {
@@ -50,11 +52,14 @@ function HistoryWorkspace() {
   async function handleTermSearch(e: React.FormEvent) {
     e.preventDefault();
     if (!termQuery.trim()) return;
+    setSearching(true);
     try {
       const res = await api.searchTerms(termQuery.trim(), locale, 8);
       setTermResults(res);
     } catch {
       setTermResults([]);
+    } finally {
+      setSearching(false);
     }
   }
 
@@ -93,9 +98,19 @@ function HistoryWorkspace() {
                 color: "var(--ms-ink)",
               }}
             />
-            <button type="submit" className="ms-btn-primary tap-target inline-flex items-center gap-2 px-4 text-sm">
-              <Search className="h-4 w-4" aria-hidden="true" />
-              <span>Search Word</span>
+            <button
+              type="submit"
+              disabled={searching || !termQuery.trim()}
+              className="ms-btn-primary tap-target inline-flex items-center justify-center gap-2 px-4 text-sm min-w-[140px]"
+            >
+              {searching ? (
+                <SearchingIndicator label="Searching" compact />
+              ) : (
+                <>
+                  <Search className="h-4 w-4" aria-hidden="true" />
+                  <span>Search Word</span>
+                </>
+              )}
             </button>
           </form>
 

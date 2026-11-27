@@ -235,7 +235,8 @@ def build_explanation_prompt(
         "   - general_education: list of {topic, text, source_name, source_url, diagram_id?} using ONLY the supplied verified KB entries.\n"
         "   - uncertain_or_missing: list of {field, reason} for anything omitted, ambiguous, or unverified.\n"
         "3. Never use false reassurance ('don't worry', 'nothing serious', 'completely harmless').\n"
-        "4. Return valid JSON ONLY matching those exact keys."
+        "4. In ai_simplified, you MUST explicitly preserve every vital sign, every prescribed medicine with its exact dose, frequency, timing with food, and duration, all safety warnings (e.g., 'Do NOT stop abruptly', 'max 4 tablets in 24 hours'), all advised diagnostic tests/monitoring ('tests advised: ...'), and the follow-up timeline and return precautions.\n"
+        "5. Return valid JSON ONLY matching those exact keys."
     )
     user_prompt = (
         f"[Prompt: explain_v1 | InputType: {input_type} | IncludeVisuals: {include_visuals}]\n"
@@ -450,10 +451,12 @@ def build_chat_qa_prompt(
         "explicitly state what the doctor's note DOES and DOES NOT say, explain the general difference using verified KB/research, "
         "and advise consulting the doctor for any evaluation.\n"
         "3. If intent is diagnosis_seeking, prescription_request, dose_change_request, or stop_or_substitute_request, "
-        "calmly refuse autonomous action, keep original instructions unchanged, and refer to the prescribing doctor.\n"
+        "never output only a canned refusal or generic 'Please consult your doctor for clinical guidance.' "
+        "Instead, provide a helpful educational explanation of what is documented, relevant verified drug safety facts or physiological mechanisms, "
+        "and append the standard safety note at the bottom: 'AI can make mistakes. Please consult your doctor for clinical guidance.'\n"
         "4. If user asks to 'explain simpler', simplify the prior answer while keeping every clinical fact intact.\n"
         "5. Return 4-category provenance JSON (`doctor_provided`, `ai_simplified`, `general_education`, `uncertain_or_missing`) "
-        "plus `suggested_followups` (list of strings)."
+        "plus `suggested_followups` (list of strings). Always conclude the `ai_simplified.summary` with: 'AI can make mistakes. Please consult your doctor for clinical guidance.'"
         f"{visual_instruction}"
     )
 

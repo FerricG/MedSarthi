@@ -525,6 +525,222 @@ KB_SEED_ENTRIES: list[dict] = [
         "source_name": "MedlinePlus",
         "source_url": "https://medlineplus.gov/druginfo/meds/a690007.html",
     },
+    {
+        "entry_type": "medicine",
+        "canonical_name": "Ibuprofen",
+        "slug": "ibuprofen",
+        "aliases": ["Combiflam", "Brufen", "Advil", "Motrin", "Ibugesic"],
+        "body_system": "systemic",
+        "simple_en": (
+            "A medicine used to reduce inflammation, fever, and moderate pain such as headache, dental pain, or joint aches."
+        ),
+        "detailed_en": (
+            "Ibuprofen is a nonsteroidal anti-inflammatory drug (NSAID) that works by inhibiting COX enzymes and prostaglandin synthesis. "
+            "It should always be taken with or after food to protect the stomach lining."
+        ),
+        "translations": {
+            "hi": {
+                "name": "आइबूप्रोफेन (दर्द और सूजन की दवा)",
+                "simple": "यह सिरदर्द, बदन दर्द, जोड़ों के दर्द और सूजन से राहत दिलाने वाली दवा है।",
+                "detailed": "आइबूप्रोफेन को हमेशा भोजन के बाद लेना चाहिए ताकि पेट में जलन या गैस न हो।",
+            },
+            "hi-Latn": {
+                "name": "Ibuprofen (Dard aur Sujan ki Dawa)",
+                "simple": "Yeh dard, sujan aur bukhar kam karne wali aam NSAID medicine hai.",
+                "detailed": "Ibuprofen hamesha khane ke baad lein taaki pet mein acidity ya jalan na ho.",
+            },
+        },
+        "metadata_json": {
+            "drug_class": "Nonsteroidal Anti-inflammatory Drug (NSAID)",
+            "brand_examples": ["Combiflam", "Brufen", "Advil"],
+            "common_purposes": "Relieves pain, swelling, and mild fever as advised by clinicians.",
+            "mechanism": "Reduces hormones that cause inflammation and pain signals in the body.",
+            "common_side_effects": ["Mild stomach ache", "Heartburn", "Nausea"],
+            "serious_warnings": [
+                "Take with or after meals to prevent stomach irritation.",
+                "Do NOT use if you have an active stomach ulcer or severe kidney illness without doctor guidance.",
+                "Seek urgent care for dark tarry stools or vomiting blood."
+            ],
+            "precautions": ["Inform your doctor if you have high blood pressure, heart disease, or kidney conditions."],
+            "food_and_interactions": "Always take with food or milk. Avoid taking with other NSAID pain relievers simultaneously.",
+            "questions_for_doctor": [
+                "How many days should I continue taking this medicine?",
+                "Do I need an antacid or PPI medicine to protect my stomach?"
+            ],
+            "curated_diagram_key": "digestive_med_pathway",
+        },
+        "source_name": "NHS",
+        "source_url": "https://www.nhs.uk/medicines/ibuprofen-for-adults/",
+    },
+    {
+        "entry_type": "medicine",
+        "canonical_name": "Pantoprazole",
+        "slug": "pantoprazole",
+        "aliases": ["Pan 40", "Pan40", "Pantocid", "Pantosec", "Pantodac"],
+        "body_system": "digestive",
+        "simple_en": (
+            "A medicine that reduces excess stomach acid to ease heartburn, acid reflux, gastritis, and stomach irritation."
+        ),
+        "detailed_en": (
+            "Pantoprazole is a proton pump inhibitor (PPI) that decreases stomach acid production. "
+            "It is typically taken once daily in the morning, 30 to 60 minutes before breakfast."
+        ),
+        "translations": {
+            "hi": {
+                "name": "पेंटोप्राजोल (एसिडिटी और गैस की दवा)",
+                "simple": "यह पेट में बनने वाले एसिड को कम करती है ताकि सीने में जलन और गैस से राहत मिले।",
+                "detailed": "पेंटोप्राजोल को आमतौर पर सुबह खाली पेट, नाश्ते से 30-60 मिनट पहले लिया जाता है।",
+            },
+            "hi-Latn": {
+                "name": "Pantoprazole (Acidity aur Gas ki Dawa)",
+                "simple": "Yeh pet mein acid banne ko kam karti hai taaki jalan aur gas na ho.",
+                "detailed": "Pantoprazole aamtaur par subah khali pet, breakfast se aadha ghanta pehle li jaati hai.",
+            },
+        },
+        "metadata_json": {
+            "drug_class": "Proton Pump Inhibitor (PPI / Antacid)",
+            "brand_examples": ["Pan 40", "Pantocid", "Pantosec"],
+            "common_purposes": "Prescribed for gastroesophageal reflux (GERD), gastritis, and ulcer healing.",
+            "mechanism": "Blocks the gastric proton pumps in the stomach wall from secreting excess acid.",
+            "common_side_effects": ["Mild headache", "Diarrhea or constipation", "Gas"],
+            "serious_warnings": [
+                "Swallow whole; do NOT crush or chew delayed-release tablets.",
+                "Seek medical advice if severe watery diarrhea or abdominal pain develops."
+            ],
+            "precautions": ["Discuss long-term use with your clinician; long term use can affect magnesium and calcium levels."],
+            "food_and_interactions": "Best taken in the morning 30–60 minutes before your first meal.",
+            "questions_for_doctor": [
+                "Should I take this only when I have acidity or every morning continuously?",
+                "For how many weeks should I continue this course?"
+            ],
+            "curated_diagram_key": "digestive_med_pathway",
+        },
+        "source_name": "NHS",
+        "source_url": "https://www.nhs.uk/medicines/pantoprazole/",
+    },
+    {
+        "entry_type": "medicine",
+        "canonical_name": "Omeprazole",
+        "slug": "omeprazole",
+        "aliases": ["Omez", "Prilosec"],
+        "body_system": "digestive",
+        "simple_en": (
+            "A widely used medicine that lowers stomach acid to treat heartburn, acid reflux, indigestion, and ulcers."
+        ),
+        "detailed_en": (
+            "Omeprazole suppresses gastric acid secretion by specific inhibition of the H+/K+-ATPase enzyme system. "
+            "It is best taken before meals to provide full daytime acid suppression."
+        ),
+        "translations": {
+            "hi": {
+                "name": "ओमेप्राजोल (एसिड रिफ्लक्स की दवा)",
+                "simple": "यह पेट के एसिड को कम करके सीने में जलन और अपच में राहत देती है।",
+                "detailed": "ओमेप्राजोल को डॉक्टर के निर्देशानुसार सुबह भोजन से पहले लें।",
+            },
+            "hi-Latn": {
+                "name": "Omeprazole (Pet ki jalan aur acidity ki dawa)",
+                "simple": "Yeh pet ke acid ko kam karke heartburn aur indigestion theek karti hai.",
+                "detailed": "Omeprazole ko doctor ki advise ke mutabiq subah meal se pehle lein.",
+            },
+        },
+        "metadata_json": {
+            "drug_class": "Proton Pump Inhibitor (PPI)",
+            "brand_examples": ["Omez", "Prilosec"],
+            "common_purposes": "Treats GERD, dyspepsia, and prevents NSAID-induced ulcers.",
+            "mechanism": "Selectively inhibits gastric acid secretion by blocking proton pumps.",
+            "common_side_effects": ["Headache", "Nausea", "Mild stomach pain"],
+            "serious_warnings": ["Inform your doctor if you experience unexplained weight loss, difficulty swallowing, or persistent vomiting."],
+            "precautions": ["Inform clinician about liver health before long-term therapy."],
+            "food_and_interactions": "Take 30 to 60 minutes before meals with water.",
+            "questions_for_doctor": ["Can I stop taking this once my heartburn goes away?"],
+            "curated_diagram_key": "digestive_med_pathway",
+        },
+        "source_name": "MedlinePlus",
+        "source_url": "https://medlineplus.gov/druginfo/meds/a693050.html",
+    },
+    {
+        "entry_type": "medicine",
+        "canonical_name": "Cetirizine",
+        "slug": "cetirizine",
+        "aliases": ["Cetzine", "Okacet", "Zyrtec", "Alerid"],
+        "body_system": "respiratory",
+        "simple_en": (
+            "An anti-allergy medicine that relieves sneezing, runny nose, itchy throat, watery eyes, and allergic skin hives."
+        ),
+        "detailed_en": (
+            "Cetirizine is a second-generation antihistamine that selectively blocks peripheral H1 histamine receptors. "
+            "It may cause mild drowsiness in some individuals, so driving or operating machinery should be avoided if feeling sleepy."
+        ),
+        "translations": {
+            "hi": {
+                "name": "सिटिरिज़िन (एलर्जी और छींक की दवा)",
+                "simple": "यह बहती नाक, छींक, खुजली और एलर्जी के लक्षणों से राहत दिलाती है।",
+                "detailed": "सिटिरिज़िन से हल्की नींद या सुस्ती आ सकती है, इसलिए इसे लेने के बाद सावधानी बरतें।",
+            },
+            "hi-Latn": {
+                "name": "Cetirizine (Allergy aur Chheenk ki Dawa)",
+                "simple": "Yeh runny nose, chheenk aur allergy ki khujli ko rokti hai.",
+                "detailed": "Cetirizine lene ke baad thodi neend ya susti aa sakti hai, isliye aamtaur par raat ko li jaati hai.",
+            },
+        },
+        "metadata_json": {
+            "drug_class": "Second-Generation Antihistamine",
+            "brand_examples": ["Cetzine", "Okacet", "Zyrtec"],
+            "common_purposes": "Allergic rhinitis, seasonal allergies, hay fever, and urticaria (hives).",
+            "mechanism": "Blocks histamine H1 receptors to stop allergy cascades.",
+            "common_side_effects": ["Mild drowsiness", "Dry mouth", "Fatigue"],
+            "serious_warnings": ["Avoid alcohol while taking cetirizine as it can increase drowsiness."],
+            "precautions": ["Use caution when driving until you know how this medication affects you."],
+            "food_and_interactions": "Can be taken with or without food, typically in the evening before bed.",
+            "questions_for_doctor": ["Should I take this only when allergies flare up or daily during pollen season?"],
+            "curated_diagram_key": "digestive_med_pathway",
+        },
+        "source_name": "NHS",
+        "source_url": "https://www.nhs.uk/medicines/cetirizine/",
+    },
+    {
+        "entry_type": "medicine",
+        "canonical_name": "Atorvastatin",
+        "slug": "atorvastatin",
+        "aliases": ["Atorva", "Lipitor", "Storvas"],
+        "body_system": "cardiovascular",
+        "simple_en": (
+            "A medicine taken once daily to help lower bad cholesterol and reduce the risk of heart disease and stroke."
+        ),
+        "detailed_en": (
+            "Atorvastatin is an HMG-CoA reductase inhibitor that reduces LDL cholesterol and triglycerides while modestly raising HDL. "
+            "It is usually prescribed as a once-daily tablet, often in the evening."
+        ),
+        "translations": {
+            "hi": {
+                "name": "एटोर्वास्टेटिन (कोलेस्ट्रॉल कम करने की दवा)",
+                "simple": "यह शरीर में हानिकारक कोलेस्ट्रॉल को कम करके दिल को स्वस्थ रखने में मदद करती है।",
+                "detailed": "एटोर्वास्टेटिन को नियमित रूप से, आमतौर पर रात को भोजन के बाद एक बार लिया जाता है।",
+            },
+            "hi-Latn": {
+                "name": "Atorvastatin (Cholesterol kam karne ki dawa)",
+                "simple": "Yeh kharab cholesterol ko kam karke heart attack ke risk ko rokti hai.",
+                "detailed": "Atorvastatin regular rozana raat ko ek bar li jaati hai.",
+            },
+        },
+        "metadata_json": {
+            "drug_class": "HMG-CoA Reductase Inhibitor (Statin)",
+            "brand_examples": ["Atorva", "Lipitor", "Storvas"],
+            "common_purposes": "Lowering LDL cholesterol and cardiovascular risk reduction.",
+            "mechanism": "Inhibits HMG-CoA reductase in the liver to decrease cholesterol synthesis.",
+            "common_side_effects": ["Occasional mild muscle aches", "Digestive changes", "Nausea"],
+            "serious_warnings": [
+                "Promptly report unexplained severe muscle pain, tenderness, or weakness to your doctor.",
+                "Do NOT drink large amounts of grapefruit juice while taking atorvastatin."
+            ],
+            "precautions": ["Periodic liver function and lipid profile checks may be requested by your clinician."],
+            "food_and_interactions": "Take once daily with or without food at the same time each day, preferably evening.",
+            "questions_for_doctor": ["How often do I need a repeat cholesterol blood test?"],
+            "curated_diagram_key": "digestive_med_pathway",
+        },
+        "source_name": "NHS",
+        "source_url": "https://www.nhs.uk/medicines/atorvastatin/",
+    },
 ]
 
 

@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Settings, Sparkles, UserCheck } from "lucide-react";
+import { Settings, Sparkles, UserCheck } from "lucide-react";
+import { BackButton } from "@/components/BackButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/i18n/I18nProvider";
 import { api, ApiError } from "@/lib/api";
@@ -118,29 +119,17 @@ export function PatientGate({ children, showBackHome = true, title }: PatientGat
 
   return (
     <div className="space-y-5">
-      {(showBackHome || title) && (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {showBackHome ? (
-            <Link
-              href="/patient/detailed"
-              className="ms-btn-secondary tap-target inline-flex items-center gap-2 px-4 text-sm"
-            >
-              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              <span>{t.nav.backToHome}</span>
-            </Link>
-          ) : (
-            <div />
-          )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <BackButton variant="page" />
 
-          <Link
-            href="/patient/settings"
-            className="ms-btn-secondary tap-target inline-flex items-center gap-2 px-4 text-sm"
-          >
-            <Settings className="h-4 w-4" aria-hidden="true" />
-            <span>{t.nav.settings}</span>
-          </Link>
-        </div>
-      )}
+        <Link
+          href="/patient/settings"
+          className="ms-btn-secondary tap-target inline-flex items-center gap-2 px-4 text-sm"
+        >
+          <Settings className="h-4 w-4" aria-hidden="true" />
+          <span>{t.nav.settings}</span>
+        </Link>
+      </div>
       {children}
     </div>
   );

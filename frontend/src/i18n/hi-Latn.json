@@ -188,5 +188,49 @@
     "statusOffline": "Backend offline (port 8000 par uvicorn start karein)",
     "noAccount": "MedSarthi par naye hain?",
     "haveAccount": "Pehle se account hai?"
+  },
+  "landing": {
+    "heroBadge": "Doctor-Anchored Clinical Communication Bridge — Normal Chatbot Nahi Hai",
+    "heroTitle": "Apne doctor ki salah ko saaf, shaanti se aur apni bhasha mein samjhein.",
+    "heroSubtitle": "MedSarthi sirf wahi samjhata aur translate karta hai jo aapke doctor ne likha hai aur verified medical facts par based hai—unclear prescriptions par koi andaza nahi lagata, dose nahi badalta, aur text size va audio speed aapki suvidha ke anusaar rakhta hai.",
+    "continueAs": "{name} ke roop mein continue karein",
+    "useWithoutAccount": "Bina Account ke Use Karein",
+    "useWithoutAccountGuest": "Bina Account ke Use Karein (Guest)",
+    "guestWorkspaceDesc": "Instant private workspace — bina sign-up reports upload karein, sawaal poochein aur sunein",
+    "features": {
+      "provenanceTitle": "4-Category Provenance",
+      "provenanceDesc": "Doctor ke shabd, simple AI summary, verified facts aur unknown points alag-alag dikhte hain.",
+      "multilingualTitle": "English • हिन्दी • Hinglish",
+      "multilingualDesc": "Ek tap mein bhasha badlein bina context ya medicine dose badle.",
+      "accessibleVoiceTitle": "Accessible Voice & WCAG AAA",
+      "accessibleVoiceDesc": "Bade 64px+ touch buttons, 0.75x–1.25x audio sentence highlighting, high contrast aur voice confirmation.",
+      "integrityGateTitle": "Deterministic Integrity Gate",
+      "integrityGateDesc": "Medicine doses, timing aur warnings check karta hai — unclear scans par koi guess nahi karta."
+    },
+    "demo": {
+      "subtitle": "Instant synthetic login (zero API keys zaroori) ya 7-part judge walkthrough dekhein.",
+      "patientDesc": "URI + BP consultation & lab report ke saath 6-action Patient Home kholein",
+      "doctorDesc": "Integrity check, OCR/audio tools aur approve/share ke saath Doctor Workspace kholein",
+      "walkthroughTitle": "Guided 7-Step Judge Demo Walkthrough",
+      "launchStep1": "Step 1 Abhi Shuru Karein",
+      "stepLabel": "Step {step}",
+      "openStep": "Step kholein",
+      "steps": {
+        "step1Title": "7-Step Friendly Onboarding",
+        "step1Desc": "Age-aware defaults (age 64 -> XL font + 0.75x audio), aasaan bhasha aur 'Yeh sawaal sunein' dekhein.",
+        "step2Title": "Doctor ka Note (Locked Clinical Source)",
+        "step2Desc": "Dr. Priya Mehta ka original note dekhein (URI, Hypertension, Paracetamol, Amlodipine).",
+        "step3Title": "4-Category Provenance & Simple Explanation",
+        "step3Desc": "Doctor ke shabd, saral bhasha, verified medical knowledge aur unknown points alag-alag dekhein.",
+        "step4Title": "One-Tap Hindi / Hinglish Switch",
+        "step4Desc": "English, हिन्दी aur Hinglish mein switch karein bina dose ya jankari badle.",
+        "step5Title": "Live Sentence Highlighting ke Saath Sunein",
+        "step5Desc": "0.75x–1.25x speed par sunein line-by-line synchronized visual highlighting ke saath.",
+        "step6Title": "'Yeh kyu hua?' & 'Sab kuch samjhayein'",
+        "step6Desc": "Explain More buttons dabayein ya medical terms par tap karke diagrams dekhein.",
+        "step7Title": "Poochein: 'Kya iska matlab mujhe pneumonia hai?'",
+        "step7Desc": "Doctor ke note ke aadhar par MedSarthi ki safe Hinglish Q&A test karein."
+      }
+    }
   }
 }

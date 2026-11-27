@@ -19,6 +19,7 @@ from app.services.ai.prompts import build_chat_qa_prompt
 from app.services.ai.registry import ProviderRegistry, get_provider_registry
 from app.services.knowledge.retriever import KnowledgeRetriever, knowledge_retriever
 from app.services.research.research_service import trusted_research_service
+from app.services.visual.decision_engine import visual_decision_engine
 from app.services.visual.visual_engine import visual_intelligence_engine
 from app.services.visual.visual_templates import get_template_for_query
 
@@ -324,13 +325,23 @@ class ChatService:
         llm_resp = await self.registry.generate_json(req)
         provenance = _normalize_provenance_shape(llm_resp.data, p.preferred_language, effective_depth)
 
-        # Step 6: Render Visual Artifact if indicated or requested
+        # Step 6: Visual Intelligence Decision Engine
         visual_artifact: dict[str, Any] | None = None
-        visual_spec = llm_resp.data.get("visual_spec")
-        if not visual_spec and (generate_visual is True or (suggest_visual and any(kw in q_lower for kw in ("diagram", "visual", "draw", "show me", "picture")))):
-            visual_spec = get_template_for_query(message_text)
+        llm_visual_spec = llm_resp.data.get("visual_spec")
+        is_visual_needed, decision_reason = visual_decision_engine.should_generate_visual(
+            query=message_text,
+            explicit_user_flag=generate_visual,
+            llm_spec=llm_visual_spec,
+        )
 
-        if visual_spec and isinstance(visual_spec, dict) and visual_spec.get("script"):
+        visual_spec: dict[str, Any] | None = None
+        if is_visual_needed:
+            if llm_visual_spec and isinstance(llm_visual_spec, dict) and llm_visual_spec.get("script"):
+                visual_spec = llm_visual_spec
+            else:
+                visual_spec = get_template_for_query(message_text)
+
+        if is_visual_needed and visual_spec and isinstance(visual_spec, dict) and visual_spec.get("script"):
             try:
                 visual_artifact = await visual_intelligence_engine.render_visual(visual_spec)
             except Exception as v_err:
@@ -362,19 +373,36 @@ class ChatService:
             {"provenance": provenance, "safety": {"disclaimer": DEFAULT_DISCLAIMER}}
         )
 
-        citations = [
-            {"source_name": entry["source_name"], "source_url": entry["source_url"], "domain": "Clinical KB", "trusted": True}
-            for entry in kb_entries
-        ]
+        # Genuine Citations: prioritize actual research results, then relevant KB entries
+        citations: list[dict[str, Any]] = []
+        seen_urls: set[str] = set()
+
         if research_context:
             for s in research_context:
                 url = s.get("source_url") or s.get("url") or ""
-                if url:
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
                     citations.append({
                         "source_name": s.get("title") or s.get("source_name") or s.get("domain", "Trusted Research Source"),
                         "source_url": url,
-                        "domain": s.get("domain", ""),
+                        "domain": s.get("domain", "Web Research"),
                         "trusted": s.get("trusted", True),
+                    })
+
+        # Include KB entries only if relevant to the question or answer
+        combined_text = (message_text + " " + output_text).lower()
+        for entry in kb_entries:
+            canon = (entry.get("canonical_name") or "").lower()
+            slug = (entry.get("slug") or "").lower()
+            if canon in combined_text or slug in combined_text or not research_context:
+                url = entry.get("source_url") or ""
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    citations.append({
+                        "source_name": entry.get("source_name") or entry.get("canonical_name"),
+                        "source_url": url,
+                        "domain": "Clinical KB",
+                        "trusted": True,
                     })
 
         suggested_followups = llm_resp.data.get("suggested_followups") or [

@@ -1,5 +1,7 @@
 """Patient profile, preferences, shared consultations, and derived medications routes."""
 
+import logging
+from datetime import datetime, timezone
 from typing import Any
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
@@ -34,6 +36,8 @@ from app.schemas.patients import (
 )
 from app.services.knowledge.retriever import knowledge_retriever
 from app.services.notifications.notification_service import notification_framework
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["patients"])
 
@@ -462,7 +466,9 @@ async def submit_guided_review_rating(
 ) -> dict:
     """Save the patient's 1-5 star rating and feedback for the guided narrator experience."""
     profile = await get_patient_profile_for_user(db, current_user)
-    if payload.document_id:
+    
+    # 1. Update Document structured fields if document_id provided
+    if payload.document_id and profile:
         doc = (
             await db.execute(
                 select(MedicalDocument).where(
@@ -478,14 +484,39 @@ async def submit_guided_review_rating(
                 "rating": payload.rating,
                 "feedback_text": (payload.feedback_text or "").strip() or None,
                 "review_id": payload.review_id,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             doc.ocr_structured_fields = fields
             await db.commit()
+
+    # 2. Persist feedback audit log to data/feedback_audit.jsonl
+    try:
+        from pathlib import Path
+        import json
+        feedback_dir = Path("data")
+        feedback_dir.mkdir(parents=True, exist_ok=True)
+        log_file = feedback_dir / "feedback_audit.jsonl"
+        entry = {
+            "user_id": current_user.id,
+            "patient_id": profile.id if profile else None,
+            "patient_name": profile.name if profile else None,
+            "rating": payload.rating,
+            "feedback_text": (payload.feedback_text or "").strip() or None,
+            "document_id": payload.document_id,
+            "conversation_id": payload.conversation_id,
+            "review_id": payload.review_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception as log_err:
+        logger.warning("Could not append to feedback_audit.jsonl: %s", log_err)
 
     return ok_envelope(
         {
             "saved": True,
             "rating": payload.rating,
-            "thank_you": "Thank you for your feedback! Wishing you a speedy recovery.",
+            "feedback_text": (payload.feedback_text or "").strip() or None,
+            "thank_you": "Thank you for your feedback! Your rating and comments have been safely recorded.",
         }
     )

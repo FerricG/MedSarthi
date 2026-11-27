@@ -4,18 +4,28 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
+  Check,
   CheckCircle2,
+  Copy,
+  ExternalLink,
   Mic,
   MicOff,
   Play,
   RefreshCw,
   Square,
+  UploadCloud,
   Volume2,
   Wrench,
   X,
 } from "lucide-react";
 import { api, type SttResponse } from "@/lib/api";
 import { type SupportedLocale } from "@/i18n/I18nProvider";
+import {
+  checkMediaDevicesSupport,
+  getAudioInputDevices,
+  getAudioStream,
+  type MediaDevicesStatus,
+} from "@/lib/audioCapture";
 
 export interface MicrophoneDiagnosticModalProps {
   isOpen: boolean;
@@ -30,9 +40,11 @@ export function MicrophoneDiagnosticModal({
   language = "en",
   onApplyTranscript,
 }: MicrophoneDiagnosticModalProps) {
+  const [mediaSupport, setMediaSupport] = useState<MediaDevicesStatus>(checkMediaDevicesSupport());
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
   const [permissionState, setPermissionState] = useState<"prompt" | "granted" | "denied">("prompt");
+  const [copiedFlag, setCopiedFlag] = useState(false);
 
   // Live Audio Level Monitoring
   const [isMonitoring, setIsMonitoring] = useState(false);
@@ -55,16 +67,26 @@ export function MicrophoneDiagnosticModal({
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // 1. Enumerate input audio devices
+  // 1. Enumerate input audio devices safely
   async function refreshDevices() {
-    if (!navigator.mediaDevices?.enumerateDevices) {
-      setDiagnosticMsg("MediaDevices API is not supported in this browser.");
+    const support = checkMediaDevicesSupport();
+    setMediaSupport(support);
+
+    if (!support.hasGetUserMedia) {
+      if (!support.isSecureContext) {
+        setDiagnosticMsg(
+          `Microphone hardware access is restricted on insecure HTTP addresses (${support.origin}). Use http://localhost:3000 or upload an audio file.`
+        );
+      } else {
+        setDiagnosticMsg("MediaDevices audio API is not supported in this browser.");
+      }
       return;
     }
+
     try {
-      const all = await navigator.mediaDevices.enumerateDevices();
-      const audioInputs = all.filter((d) => d.kind === "audioinput");
+      const audioInputs = await getAudioInputDevices();
       setDevices(audioInputs);
       if (audioInputs.length > 0 && !selectedDeviceId) {
         setSelectedDeviceId(audioInputs[0].deviceId);
@@ -74,17 +96,32 @@ export function MicrophoneDiagnosticModal({
     }
   }
 
-  // 2. Start Live Monitoring on specified device
+  // 2. Start Live Monitoring on specified device safely
   async function startMonitoring(deviceId?: string) {
     stopMonitoring();
     setDiagnosticMsg(null);
     setHasDetectedAudio(false);
 
+    const support = checkMediaDevicesSupport();
+    setMediaSupport(support);
+
+    if (!support.hasGetUserMedia) {
+      setPermissionState("denied");
+      if (!support.isSecureContext) {
+        setDiagnosticMsg(
+          `Insecure Context: Your browser disables microphone APIs on ${support.origin}. Use http://localhost:3000 or upload audio below.`
+        );
+      } else {
+        setDiagnosticMsg("Microphone capture is not supported in this browser.");
+      }
+      return;
+    }
+
     try {
       const constraints: MediaStreamConstraints = {
         audio: deviceId ? { deviceId: { exact: deviceId } } : true,
       };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      const stream = await getAudioStream(constraints);
       streamRef.current = stream;
       setPermissionState("granted");
       setIsMonitoring(true);
@@ -93,7 +130,9 @@ export function MicrophoneDiagnosticModal({
       await refreshDevices();
 
       // Setup Web Audio Analyser
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       const ctx = new AudioCtx();
       audioContextRef.current = ctx;
       const source = ctx.createMediaStreamSource(stream);
@@ -129,9 +168,16 @@ export function MicrophoneDiagnosticModal({
       const error = err as { name?: string; message?: string };
       if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
         setPermissionState("denied");
-        setDiagnosticMsg("Microphone permission was denied. Please allow microphone access in your browser site settings.");
+        setDiagnosticMsg(
+          "Microphone permission was denied. Please allow microphone access in your browser address bar / site settings."
+        );
       } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-        setDiagnosticMsg("No microphone was detected on your system.");
+        setDiagnosticMsg("No microphone hardware was detected on your computer.");
+      } else if (String(error.message).includes("INSECURE_CONTEXT")) {
+        setPermissionState("denied");
+        setDiagnosticMsg(
+          "Microphone blocked by browser security: Browser requires HTTPS or http://localhost to access microphone hardware."
+        );
       } else {
         setDiagnosticMsg(error.message || "Failed to access microphone input.");
       }
@@ -205,19 +251,20 @@ export function MicrophoneDiagnosticModal({
   }
 
   // 4. Test Transcription Pipeline
-  async function runTranscriptionTest() {
-    if (!testAudioBlob) return;
+  async function runTranscriptionTest(audioBlobToTest?: Blob) {
+    const blob = audioBlobToTest || testAudioBlob;
+    if (!blob) return;
     setIsTestingSTT(true);
     setDiagnosticMsg(null);
     try {
-      const res = await api.speechToText(testAudioBlob, language, "mic-test.webm");
+      const res = await api.speechToText(blob, language, "mic-test.webm");
       setSttResult(res);
       if (res.transcript_text) {
-        setDiagnosticMsg("Speech recognized successfully! Your microphone and audio pipeline are working.");
+        setDiagnosticMsg("Speech recognized successfully! Your audio pipeline and Whisper model are working.");
       } else if (res.message) {
         setDiagnosticMsg(res.message);
       } else {
-        setDiagnosticMsg("No words recognized. Please speak louder and closer to your microphone.");
+        setDiagnosticMsg("No words recognized in audio. Please speak louder and closer to your microphone.");
       }
     } catch (err) {
       setDiagnosticMsg(err instanceof Error ? err.message : "Transcription test request failed.");
@@ -226,10 +273,32 @@ export function MicrophoneDiagnosticModal({
     }
   }
 
+  // 5. Handle Direct Audio File Selection (Fallback when browser blocks microphone)
+  async function handleAudioFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setTestAudioBlob(file);
+    if (testAudioUrl) URL.revokeObjectURL(testAudioUrl);
+    setTestAudioUrl(URL.createObjectURL(file));
+    await runTranscriptionTest(file);
+  }
+
+  function copyChromeFlag() {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(`chrome://flags/#unsafely-treat-insecure-origin-as-secure`);
+      setCopiedFlag(true);
+      setTimeout(() => setCopiedFlag(false), 2000);
+    }
+  }
+
   useEffect(() => {
     if (isOpen) {
+      const support = checkMediaDevicesSupport();
+      setMediaSupport(support);
       refreshDevices();
-      startMonitoring();
+      if (support.hasGetUserMedia) {
+        startMonitoring();
+      }
     } else {
       stopMonitoring();
       if (timerRef.current) clearInterval(timerRef.current);
@@ -245,6 +314,9 @@ export function MicrophoneDiagnosticModal({
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const currentPort = typeof window !== "undefined" ? window.location.port || "3000" : "3000";
+  const localhostUrl = `http://localhost:${currentPort}`;
 
   return (
     <div
@@ -276,10 +348,86 @@ export function MicrophoneDiagnosticModal({
           </button>
         </div>
 
+        {/* Insecure Context Security Banner (When accessing via LAN IP e.g. 10.75.24.200) */}
+        {!mediaSupport.hasGetUserMedia && (
+          <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-3 text-xs text-amber-900">
+            <div className="flex items-center gap-2 font-bold text-sm text-amber-900">
+              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+              <span>Microphone Blocked: Insecure HTTP Network Connection</span>
+            </div>
+            <p className="leading-relaxed">
+              Modern web browsers (Chrome, Edge, Safari, Firefox) automatically disable live microphone hardware access
+              when accessed over unencrypted network addresses like{" "}
+              <code className="bg-amber-100 px-1.5 py-0.5 rounded font-mono font-bold text-amber-900">
+                {mediaSupport.origin}
+              </code>
+              .
+            </p>
+
+            <div className="rounded-lg bg-white p-3 border border-amber-200 space-y-2.5">
+              <span className="font-bold text-amber-950 uppercase tracking-wide text-[11px]">
+                3 Easy Ways to Fix or Use Voice:
+              </span>
+              <div className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <span className="font-bold text-blue-700 shrink-0">1.</span>
+                  <div>
+                    <span className="font-bold">Use Localhost (If you are on this PC):</span>
+                    <p className="text-gray-600">
+                      Open{" "}
+                      <a
+                        href={localhostUrl}
+                        className="text-blue-700 font-mono font-bold underline inline-flex items-center gap-1"
+                      >
+                        {localhostUrl} <ExternalLink className="h-3 w-3" />
+                      </a>
+                      . Browsers grant full microphone permissions to localhost.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <span className="font-bold text-blue-700 shrink-0">2.</span>
+                  <div>
+                    <span className="font-bold">Allow Insecure Origin (If on phone / Wi-Fi):</span>
+                    <p className="text-gray-600">
+                      Open <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">chrome://flags</code>, enable{" "}
+                      <span className="font-mono text-gray-800">Insecure origins treated as secure</span>, add{" "}
+                      <code className="bg-gray-100 px-1 py-0.5 rounded font-mono font-bold">{mediaSupport.origin}</code>,
+                      and relaunch browser.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={copyChromeFlag}
+                      className="mt-1 inline-flex items-center gap-1 rounded border border-gray-300 bg-gray-50 px-2 py-0.5 text-[11px] font-bold text-gray-700 hover:bg-gray-100"
+                    >
+                      {copiedFlag ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                      <span>{copiedFlag ? "Flag URL Copied!" : "Copy Chrome Flag URL"}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <span className="font-bold text-blue-700 shrink-0">3.</span>
+                  <div>
+                    <span className="font-bold">Upload Audio Note (Works everywhere):</span>
+                    <p className="text-gray-600">
+                      Record a voice memo on your phone/PC and upload it below. Our Whisper AI backend will transcribe it immediately.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Diagnostic Checklist */}
         <div className="space-y-4 text-sm">
           {/* Step 1: Device Detection & Selection */}
-          <div className="rounded-xl border p-3.5 space-y-2" style={{ borderColor: "var(--ms-border)", backgroundColor: "var(--ms-surface-alt)" }}>
+          <div
+            className="rounded-xl border p-3.5 space-y-2"
+            style={{ borderColor: "var(--ms-border)", backgroundColor: "var(--ms-surface-alt)" }}
+          >
             <div className="flex items-center justify-between">
               <span className="font-bold flex items-center gap-2">
                 {permissionState === "granted" ? (
@@ -298,7 +446,11 @@ export function MicrophoneDiagnosticModal({
               </button>
             </div>
             {devices.length === 0 ? (
-              <p className="text-xs text-amber-700">No external microphones listed yet. Click Allow below if prompted.</p>
+              <p className="text-xs text-amber-700">
+                {!mediaSupport.hasGetUserMedia
+                  ? "Microphone hardware enumeration blocked by browser security over HTTP."
+                  : "No external microphones listed yet. Click Allow if your browser prompts for permission."}
+              </p>
             ) : (
               <select
                 value={selectedDeviceId}
@@ -319,7 +471,10 @@ export function MicrophoneDiagnosticModal({
           </div>
 
           {/* Step 2: Live Volume / Level Meter */}
-          <div className="rounded-xl border p-3.5 space-y-2" style={{ borderColor: "var(--ms-border)", backgroundColor: "var(--ms-surface-alt)" }}>
+          <div
+            className="rounded-xl border p-3.5 space-y-2"
+            style={{ borderColor: "var(--ms-border)", backgroundColor: "var(--ms-surface-alt)" }}
+          >
             <div className="flex items-center justify-between">
               <span className="font-bold flex items-center gap-2">
                 {hasDetectedAudio ? (
@@ -332,10 +487,13 @@ export function MicrophoneDiagnosticModal({
               <span className="text-xs font-bold text-gray-500">{volumeLevel}%</span>
             </div>
             <p className="text-xs text-gray-600">
-              Speak into your microphone now. The green bar should bounce as you talk.
+              Speak into your microphone now. The green bar bounces in real-time as you speak.
             </p>
             {/* Visual Level Bar */}
-            <div className="h-4 w-full overflow-hidden rounded-full border bg-gray-200" style={{ borderColor: "var(--ms-border)" }}>
+            <div
+              className="h-4 w-full overflow-hidden rounded-full border bg-gray-200"
+              style={{ borderColor: "var(--ms-border)" }}
+            >
               <div
                 className="h-full transition-all duration-75"
                 style={{
@@ -356,43 +514,68 @@ export function MicrophoneDiagnosticModal({
           </div>
 
           {/* Step 3: Record Short Test Audio & Transcribe */}
-          <div className="rounded-xl border p-3.5 space-y-3" style={{ borderColor: "var(--ms-border)", backgroundColor: "var(--ms-surface-alt)" }}>
+          <div
+            className="rounded-xl border p-3.5 space-y-3"
+            style={{ borderColor: "var(--ms-border)", backgroundColor: "var(--ms-surface-alt)" }}
+          >
             <span className="font-bold flex items-center gap-2">
               <Mic className="h-4 w-4" style={{ color: "var(--ms-primary)" }} />
-              3. Speech Recognition Test
+              3. Speech Recognition & File Test
             </span>
             <p className="text-xs text-gray-600">
-              Record a 3-second test clip (e.g. &ldquo;Hello Doctor, testing my microphone&rdquo;) to verify recognition.
+              Record a 3-second live test clip or upload an existing audio memo (.m4a, .mp3, .wav, .webm) to verify speech recognition.
             </p>
 
             <div className="flex flex-wrap items-center gap-2">
-              {!isRecordingTest ? (
-                <button
-                  type="button"
-                  onClick={startTestRecord}
-                  className="ms-btn-primary tap-target inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold"
-                >
-                  <Mic className="h-3.5 w-3.5" /> Start 3s Test Recording
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={stopTestRecord}
-                  className="ms-btn-danger tap-target inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold animate-pulse"
-                >
-                  <Square className="h-3.5 w-3.5" /> Stop Recording ({recordSeconds}s)
-                </button>
+              {mediaSupport.hasGetUserMedia && (
+                <>
+                  {!isRecordingTest ? (
+                    <button
+                      type="button"
+                      onClick={startTestRecord}
+                      className="ms-btn-primary tap-target inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold"
+                    >
+                      <Mic className="h-3.5 w-3.5" /> Start 3s Test Recording
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={stopTestRecord}
+                      className="ms-btn-danger tap-target inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold animate-pulse"
+                    >
+                      <Square className="h-3.5 w-3.5" /> Stop Recording ({recordSeconds}s)
+                    </button>
+                  )}
+                </>
               )}
+
+              {/* Upload audio file directly */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="audio/*"
+                onChange={handleAudioFileSelect}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isTestingSTT}
+                className="ms-btn-secondary tap-target inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold"
+              >
+                <UploadCloud className="h-3.5 w-3.5" />
+                <span>Upload Audio File</span>
+              </button>
 
               {testAudioBlob && !isRecordingTest && (
                 <button
                   type="button"
-                  onClick={runTranscriptionTest}
+                  onClick={() => runTranscriptionTest()}
                   disabled={isTestingSTT}
                   className="ms-btn-secondary tap-target inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold"
                 >
                   <RefreshCw className={`h-3.5 w-3.5 ${isTestingSTT ? "animate-spin" : ""}`} />
-                  {isTestingSTT ? "Transcribing Test..." : "Test Speech Recognition"}
+                  {isTestingSTT ? "Transcribing Audio..." : "Re-Test Transcription"}
                 </button>
               )}
             </div>
@@ -400,7 +583,7 @@ export function MicrophoneDiagnosticModal({
             {/* Playback preview of test audio */}
             {testAudioUrl && (
               <div className="mt-2 flex items-center gap-2">
-                <span className="text-xs font-medium text-gray-500">Recorded Audio:</span>
+                <span className="text-xs font-medium text-gray-500">Audio Clip:</span>
                 <audio controls src={testAudioUrl} className="h-8 max-w-full" />
               </div>
             )}

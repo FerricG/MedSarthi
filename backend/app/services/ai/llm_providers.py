@@ -61,10 +61,11 @@ class GroqLLMProvider(LLMProvider):
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
+        max_toks = max(request.max_tokens or 4096, 4096)
         body = {
             "model": self.model_name,
             "temperature": request.temperature,
-            "max_tokens": request.max_tokens,
+            "max_tokens": max_toks,
             "response_format": {"type": "json_object"},
             "messages": [
                 {"role": "system", "content": request.system_prompt},
@@ -90,8 +91,9 @@ class GroqLLMProvider(LLMProvider):
                 self.model_name = current_model
                 break
             logger.warning("Groq API error on model '%s' (%s): %s", current_model, resp.status_code, resp.text)
-            if resp.status_code not in (404, 429, 503):
-                # If not a model_not_found, rate_limit, or service_unavailable error, don't keep cycling
+            is_json_truncation = resp.status_code == 400 and "json_validate_failed" in resp.text
+            if resp.status_code not in (404, 429, 503) and not is_json_truncation:
+                # If not a model_not_found, rate_limit, service_unavailable, or json_validate_failed error, don't keep cycling
                 break
 
         if last_resp is None or last_resp.status_code >= 400:
@@ -336,18 +338,20 @@ _EN_TO_HI_DICT: list[tuple[str, str]] = [
     (r"\bafter meals\b", "भोजन के बाद"),
     (r"\bfor fever/body ache\b", "बुखार या बदन दर्द के लिए"),
     (r"\bfor fever or body ache\b", "बुखार या बदन दर्द के लिए"),
-    (r"\bdo NOT stop abruptly\b", "अचानक बंद न करें"),
-    (r"\bDo NOT stop abruptly\b", "अचानक बंद न करें"),
-    (r"\bdo not stop abruptly\b", "अचानक बंद न करें"),
-    (r"\bDo NOT stop without asking your doctor\b", "अपने डॉक्टर से पूछे बिना बंद न करें"),
-    (r"\bmax 4 tablets in 24 hours\b", "24 घंटे में अधिकतम 4 गोलियाँ"),
-    (r"\bmaximum 4 tablets in 24 hours\b", "24 घंटे में अधिकतम 4 गोलियाँ"),
-    (r"\bFollow up in 5 days\b", "5 दिन बाद दोबारा दिखाएं"),
-    (r"\bfollow up in 5 days\b", "5 दिन बाद दोबारा दिखाएं"),
+    (r"\bdo NOT stop abruptly\b", "अचानक बंद न करें (do NOT stop abruptly)"),
+    (r"\bDo NOT stop abruptly\b", "अचानक बंद न करें (Do NOT stop abruptly)"),
+    (r"\bdo not stop abruptly\b", "अचानक बंद न करें (do not stop abruptly)"),
+    (r"\bDo NOT stop without asking your doctor\b", "अपने डॉक्टर से पूछे बिना बंद न करें (Do NOT stop without asking your doctor)"),
+    (r"\bmax 4 tablets in 24 hours\b", "24 घंटे में अधिकतम 4 गोलियाँ (max 4 tablets in 24 hours)"),
+    (r"\bmaximum 4 tablets in 24 hours\b", "24 घंटे में अधिकतम 4 गोलियाँ (maximum 4 tablets in 24 hours)"),
+    (r"\bDo NOT exceed 4 tablets in 24 hours\b", "24 घंटे में 4 से अधिक गोलियां न लें (Do NOT exceed 4 tablets in 24 hours)"),
+    (r"\bFollow up in 5 days\b", "5 दिन बाद दोबारा दिखाएं (Follow up in 5 days)"),
+    (r"\bfollow up in 5 days\b", "5 दिन बाद दोबारा दिखाएं (follow up in 5 days)"),
     (r"\bTests advised:\s*", "जांच कराएं (Tests advised): "),
     (r"\bFollow-up date:\s*", "अगली जांच तारीख (Follow-up date): "),
     (r"\bAllergies:\s*", "एलर्जी (Allergies): "),
-    (r"\b5 days\b", "5 दिन"),
+    (r"\b3 days\b", "3 दिन (3 days)"),
+    (r"\b5 days\b", "5 दिन (5 days)"),
     (r"\bsooner if fever > 102 F or (?:breathing difficulty|trouble breathing)\b", "या यदि बुखार 102 F से अधिक हो या सांस लेने में दिक्कत हो तो तुरंत दिखाएं"),
     (r"\bContinue\b", "जारी रखें"),
     (r"\bTake\b", "लें"),
@@ -365,15 +369,20 @@ _EN_TO_HINGLISH_DICT: list[tuple[str, str]] = [
     (r"\bafter meals\b", "khaane ke baad"),
     (r"\bfor fever/body ache\b", "bukhar ya badan dard ke liye"),
     (r"\bfor fever or body ache\b", "bukhar ya badan dard ke liye"),
-    (r"\bdo NOT stop abruptly\b", "achanak band na karein"),
-    (r"\bDo NOT stop abruptly\b", "achanak band na karein"),
-    (r"\bdo not stop abruptly\b", "achanak band na karein"),
-    (r"\bDo NOT stop without asking your doctor\b", "doctor se pooche bina band na karein"),
-    (r"\bmax 4 tablets in 24 hours\b", "24 ghante mein max 4 tablets"),
-    (r"\bmaximum 4 tablets in 24 hours\b", "24 ghante mein maximum 4 tablets"),
-    (r"\bFollow up in 5 days\b", "5 din mein follow up karein"),
-    (r"\bfollow up in 5 days\b", "5 din mein follow up karein"),
-    (r"\b5 days\b", "5 din"),
+    (r"\bdo NOT stop abruptly\b", "achanak band na karein (do NOT stop abruptly)"),
+    (r"\bDo NOT stop abruptly\b", "achanak band na karein (Do NOT stop abruptly)"),
+    (r"\bdo not stop abruptly\b", "achanak band na karein (do not stop abruptly)"),
+    (r"\bDo NOT stop without asking your doctor\b", "doctor se pooche bina band na karein (Do NOT stop without asking your doctor)"),
+    (r"\bmax 4 tablets in 24 hours\b", "24 ghante mein max 4 tablets (max 4 tablets in 24 hours)"),
+    (r"\bmaximum 4 tablets in 24 hours\b", "24 ghante mein maximum 4 tablets (maximum 4 tablets in 24 hours)"),
+    (r"\bDo NOT exceed 4 tablets in 24 hours\b", "24 ghante mein 4 se zyada na lein (Do NOT exceed 4 tablets in 24 hours)"),
+    (r"\bFollow up in 5 days\b", "5 din mein follow up karein (Follow up in 5 days)"),
+    (r"\bfollow up in 5 days\b", "5 din mein follow up karein (follow up in 5 days)"),
+    (r"\bTests advised:\s*", "jaanch karayein (Tests advised): "),
+    (r"\bFollow-up date:\s*", "Follow-up date: "),
+    (r"\bAllergies:\s*", "Allergies: "),
+    (r"\b3 days\b", "3 din (3 days)"),
+    (r"\b5 days\b", "5 din (5 days)"),
     (r"\bsooner if fever > 102 F or (?:breathing difficulty|trouble breathing)\b", "ya agar fever > 102 F ho ya saans mein dikkat ho to turant dikhayein"),
     (r"\bContinue\b", "Jaari rakhein"),
     (r"\bTake\b", "Lein"),
@@ -817,7 +826,7 @@ class DemoClinicalLLMProvider(LLMProvider):
                 summary = f"{greeting}{detail_prefix}: {preserved_facts}."
 
         steps: list[str] = []
-        for idx, dp in enumerate(doctor_provided[:4], start=1):
+        for idx, dp in enumerate(doctor_provided, start=1):
             txt = dp["text"]
             if lang == "hi":
                 txt = _apply_phrase_map(txt, _EN_TO_HI_DICT)
@@ -1338,28 +1347,54 @@ class DemoClinicalLLMProvider(LLMProvider):
                 "suggested_followups": ["Why did this happen?", "Explain in Hinglish", "Listen to this answer"],
             }
 
-        # Prohibited autonomous medical actions (diagnosis / prescription / dose change / stop)
+        # Educational responses for health queries, medicines, or instructions
         if intent in (
             "diagnosis_seeking",
             "prescription_request",
             "dose_change_request",
             "stop_or_substitute_request",
         ):
+            # Check if query asks about a specific drug like Ibuprofen
+            med_focus = ""
+            if "ibuprofen" in q_lower:
+                med_focus = (
+                    "Regarding Ibuprofen: Ibuprofen is a non-steroidal anti-inflammatory drug (NSAID) commonly used for pain and fever reduction. "
+                    "It works by reducing prostaglandins that cause inflammation and fever. "
+                )
+            elif "paracetamol" in q_lower or "crocin" in q_lower or "dolo" in q_lower:
+                med_focus = (
+                    "Regarding Paracetamol: It is an analgesic and antipyretic medicine that acts primarily in the central nervous system "
+                    "to reduce pain and lower elevated body temperature. "
+                )
+            elif "amlodipine" in q_lower:
+                med_focus = (
+                    "Regarding Amlodipine: It is a calcium channel blocker that relaxes arterial blood vessel walls, helping lower blood pressure. "
+                )
+
+            disclaimer_suffix = {
+                "en": "AI can make mistakes. Please consult your doctor for clinical guidance.",
+                "hi": "AI गलतियाँ कर सकता है। क्लिनिकल मार्गदर्शन के लिए कृपया अपने डॉक्टर से परामर्श लें।",
+                "hi-Latn": "AI se galti ho sakti hai. Kripya clinical guidance ke liye apne doctor se consult karein.",
+            }.get(lang, "AI can make mistakes. Please consult your doctor for clinical guidance.")
+
             refusal_msg = {
                 "en": (
-                    "I cannot diagnose a new condition, suggest a new medicine, or tell you to change or stop a prescribed dose. "
-                    "Please speak directly with your prescribing doctor or pharmacist before making any changes. "
-                    f"Here is what your doctor recorded: {_preserve_critical_clauses(source_text, structured_data)}"
+                    f"{med_focus}MedSarthi cannot change or recommend changing a prescribed dose. "
+                    f"Based on your medical records: {_preserve_critical_clauses(source_text, structured_data)}. "
+                    "Always confirm any new medicine, dosage change, or symptom change directly with your doctor.\n\n"
+                    f"{disclaimer_suffix}"
                 ),
                 "hi": (
-                    "मैं कोई नई बीमारी तय नहीं कर सकता, न ही नई दवा सुझा सकता हूँ या डॉक्टर की लिखी मात्रा बदलने या दवा बंद करने की सलाह दे सकता हूँ। "
-                    "कृपया किसी भी बदलाव से पहले अपने डॉक्टर या फार्मासिस्ट से सलाह लें। "
-                    f"डॉक्टर के रिकॉर्ड के अनुसार: {_apply_phrase_map(_preserve_critical_clauses(source_text, structured_data), _EN_TO_HI_DICT)}"
+                    f"{med_focus}मेडसारथी डॉक्टर की लिखी खुराक बदल नहीं सकता। "
+                    f"आपके मेडिकल रिकॉर्ड के अनुसार: {_apply_phrase_map(_preserve_critical_clauses(source_text, structured_data), _EN_TO_HI_DICT)}। "
+                    "किसी भी नई दवा या खुराक में बदलाव के लिए हमेशा अपने डॉक्टर से परामर्श लें।\n\n"
+                    f"{disclaimer_suffix}"
                 ),
                 "hi-Latn": (
-                    "Main koi nayi bimari diagnose nahi kar sakta, na nayi dawa suggest kar sakta hoon, aur na hi doctor ki likhi dose badalne ya band karne ki salah de sakta hoon. "
-                    "Kripya koi bhi badlav karne se pehle apne doctor ya pharmacist se baat karein. "
-                    f"Doctor ke record ke mutabik: {_apply_phrase_map(_preserve_critical_clauses(source_text, structured_data), _EN_TO_HINGLISH_DICT)}"
+                    f"{med_focus}MedSarthi doctor ki likhi dose change nahi kar sakta. "
+                    f"Aapke medical record ke mutabik: {_apply_phrase_map(_preserve_critical_clauses(source_text, structured_data), _EN_TO_HINGLISH_DICT)}. "
+                    "Kisi bhi nayi dawa ya dose badlav ke liye hamesha apne doctor se consult karein.\n\n"
+                    f"{disclaimer_suffix}"
                 ),
             }.get(lang, "")
             return {

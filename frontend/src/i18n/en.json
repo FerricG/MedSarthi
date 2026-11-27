@@ -188,5 +188,49 @@
     "statusOffline": "Backend offline (start uvicorn on port 8000)",
     "noAccount": "New to MedSarthi?",
     "haveAccount": "Already have an account?"
+  },
+  "landing": {
+    "heroBadge": "Doctor-Anchored Clinical Communication Bridge — Not a Generic Chatbot",
+    "heroTitle": "Understand your doctor's advice clearly, calmly, and in your own language.",
+    "heroSubtitle": "MedSarthi explains and translates only what your doctor provided alongside verified medical knowledge—never guessing unreadable prescriptions, never changing dosages, and adapting text size and voice playback to your comfort.",
+    "continueAs": "Continue as {name}",
+    "useWithoutAccount": "Use Without Account",
+    "useWithoutAccountGuest": "Use Without Account (Guest)",
+    "guestWorkspaceDesc": "Instant private workspace — upload reports, ask questions & listen with no sign-up",
+    "features": {
+      "provenanceTitle": "4-Category Provenance",
+      "provenanceDesc": "Doctor words, simple AI summary, verified medical facts, and unknowns kept visually separate.",
+      "multilingualTitle": "English • हिन्दी • Hinglish",
+      "multilingualDesc": "One-tap language switch preserving consultation context and exact medicine numbers.",
+      "accessibleVoiceTitle": "Accessible Voice & WCAG AAA",
+      "accessibleVoiceDesc": "64px+ touch targets, 0.75x–1.25x audio highlighting, high contrast, and Hinglish voice confirmation.",
+      "integrityGateTitle": "Deterministic Integrity Gate",
+      "integrityGateDesc": "Verifies doses, units, frequencies, and negations—and refuses to guess unclear OCR scans."
+    },
+    "demo": {
+      "subtitle": "Instant synthetic login (zero external API keys required) or step through the 7-part judge walkthrough.",
+      "patientDesc": "Opens 6-action Patient Home with seeded URI + BP consultation & lab report",
+      "doctorDesc": "Opens Clinician Workspace with integrity check, OCR/audio tools & approve/share",
+      "walkthroughTitle": "Guided 7-Step Judge Demo Walkthrough",
+      "launchStep1": "Launch Step 1 Now",
+      "stepLabel": "Step {step}",
+      "openStep": "Open step",
+      "steps": {
+        "step1Title": "7-Step Friendly Onboarding",
+        "step1Desc": "Experience age-aware defaults (age 64 -> XL text + 0.75x audio), zero jargon, and 'Hear this question'.",
+        "step2Title": "Doctor's Note (Locked Clinical Source)",
+        "step2Desc": "Inspect Dr. Priya Mehta's immutable note (Acute Nasopharyngitis, Hypertension, Paracetamol, Amlodipine).",
+        "step3Title": "4-Category Provenance & Simple Explanation",
+        "step3Desc": "See Doctor-Provided, In Simple Words, General Medical Knowledge (with citations), and Unknown items clearly separated.",
+        "step4Title": "One-Tap Hindi / Hinglish Switch",
+        "step4Desc": "Switch between English, हिन्दी, and Hinglish without losing consultation context or altering dosages.",
+        "step5Title": "Listen with Live Sentence Highlighting",
+        "step5Desc": "Play audio at 0.75x–1.25x speed with synchronized line-by-line highlighting.",
+        "step6Title": "Progressive 'Why did this happen?' & 'Explain everything'",
+        "step6Desc": "Tap progressive Explain More buttons or tap underlined medical terms for curated SVG diagrams.",
+        "step7Title": "Ask: 'Kya iska matlab mujhe pneumonia hai?'",
+        "step7Desc": "Test MedSarthi's grounded Hinglish Q&A safety boundary against the doctor's URI note."
+      }
+    }
   }
 }

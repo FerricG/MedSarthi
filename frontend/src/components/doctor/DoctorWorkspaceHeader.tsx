@@ -3,13 +3,13 @@
 import React from "react";
 import Link from "next/link";
 import {
-  ArrowLeft,
   BadgeAlert,
   FilePlus2,
   FlaskConical,
   Sparkles,
   Stethoscope,
 } from "lucide-react";
+import { BackButton } from "@/components/BackButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 
@@ -45,13 +45,11 @@ export function DoctorWorkspaceHeader({
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             {backHref && (
-              <Link
-                href={backHref}
+              <BackButton
+                variant="page"
+                label={backLabel}
                 className="ms-btn-secondary tap-target inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold"
-              >
-                <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{backLabel}</span>
-              </Link>
+              />
             )}
             <span
               className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-extrabold uppercase tracking-wide"
