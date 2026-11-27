@@ -30,8 +30,16 @@ from app.services.safety import (
     detect_emergency,
     validate_provenance_and_guardrails,
 )
+import re
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+_DISCLAIMER_STRIP_REGEX = re.compile(
+    r"\s*(?:AI\s+can\s+make\s+mistakes\.?\s*Please\s+consult\s+your\s+doctor\s+for\s+clinical\s+guidance\.?|"
+    r"AI\s+गलतियाँ\s+कर\s+सकता\s+है।?\s*क्लिनिकल\s+मार्गदर्शन\s+के\s+लिए\s+कृपया\s+अपने\s+डॉक्टर\s+से\s+परामर्श\s+लें।?|"
+    r"AI\s+se\s+galti\s+ho\s+sakti\s+hai\.?\s*Kripya\s+clinical\s+guidance\s+ke\s+liye\s+apne\s+doctor\s+se\s+consult\s+karein\.?)\s*$",
+    re.IGNORECASE | re.UNICODE,
+)
 
 
 def _extract_citations_from_provenance(provenance: dict[str, Any] | None) -> list[dict[str, Any]]:
@@ -273,6 +281,9 @@ async def send_chat_message(
         or _flatten_provenance_text(provenance)
         or "I have analyzed your inquiry alongside your verified clinical information."
     )
+    assistant_summary = _DISCLAIMER_STRIP_REGEX.sub("", assistant_summary).strip()
+    if isinstance(ai_simp, dict) and "summary" in ai_simp:
+        ai_simp["summary"] = _DISCLAIMER_STRIP_REGEX.sub("", ai_simp["summary"]).strip()
 
     is_emerg = bool(res.get("emergency_flag") or emerg_check.get("is_emergency"))
     emerg_guidance = (

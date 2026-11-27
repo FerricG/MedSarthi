@@ -379,6 +379,20 @@ function TalkWorkspace() {
                             </a>
                           ))}
                         </div>
+                        {/* Clinical advisory directly below Verified Citations */}
+                        <p
+                          className="pt-2 border-t text-[11px] font-semibold leading-tight select-none"
+                          style={{
+                            borderColor: "var(--ms-border)",
+                            color: "var(--ms-ink-muted)",
+                          }}
+                        >
+                          {locale === "hi"
+                            ? "AI गलतियाँ कर सकता है। क्लिनिकल मार्गदर्शन के लिए कृपया अपने डॉक्टर से परामर्श लें।"
+                            : locale === "hi-Latn"
+                            ? "AI se galti ho sakti hai. Kripya clinical guidance ke liye apne doctor se consult karein."
+                            : "AI can make mistakes. Please consult your doctor for clinical guidance."}
+                        </p>
                       </div>
                     )}
 
@@ -428,21 +442,6 @@ function TalkWorkspace() {
                       compact
                       showTranscriptLines={false}
                     />
-
-                    {/* Safety disclaimer at bottom of answer */}
-                    <p
-                      className="mt-2.5 pt-2 border-t text-xs font-semibold"
-                      style={{
-                        borderColor: "var(--ms-border)",
-                        color: "var(--ms-ink-muted)",
-                      }}
-                    >
-                      {locale === "hi"
-                        ? "AI गलतियाँ कर सकता है। क्लिनिकल मार्गदर्शन के लिए कृपया अपने डॉक्टर से परामर्श लें।"
-                        : locale === "hi-Latn"
-                        ? "AI se galti ho sakti hai. Kripya clinical guidance ke liye apne doctor se consult karein."
-                        : "AI can make mistakes. Please consult your doctor for clinical guidance."}
-                    </p>
                   </div>
                 )}
               </div>

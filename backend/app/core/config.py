@@ -43,7 +43,7 @@ class Settings(BaseSettings):
 
     # AI / OCR / Speech provider selection & privacy guards (keys remain empty by default)
     LLM_PRIMARY_PROVIDER: str = "groq"
-    LLM_FALLBACK_PROVIDER: str = "gemini"
+    LLM_FALLBACK_PROVIDER: str = "openrouter"
     LLM_ALLOW_UNPAID_TRAINING_TIER: bool = False
     GROQ_ZDR_VERIFIED: bool = False
     GROQ_API_KEY: str = Field(default="")

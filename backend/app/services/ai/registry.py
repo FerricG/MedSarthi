@@ -102,7 +102,7 @@ class ProviderRegistry:
             configured_cloud.append(provider)
 
         if configured_cloud:
-            return configured_cloud[:2], warnings
+            return configured_cloud, warnings
 
         if saw_any_key and warnings:
             # Keys exist, but all configured providers were blocked by privacy guard

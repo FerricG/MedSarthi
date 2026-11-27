@@ -290,20 +290,56 @@ class OpenRouterLLMProvider(LLMProvider):
             "model": self.model_name,
             "temperature": request.temperature,
             "max_tokens": request.max_tokens,
+            "response_format": {"type": "json_object"},
             "messages": [
                 {"role": "system", "content": request.system_prompt},
                 {"role": "user", "content": request.user_prompt},
             ],
         }
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers=headers,
-                json=body,
-            )
-        if resp.status_code >= 400:
-            raise AppError(503, "PROVIDER_UNAVAILABLE", f"OpenRouter API error ({resp.status_code}).")
-        data = resp.json()
+
+        # Candidate models for OpenRouter fallback if configured model encounters rate limits or errors
+        candidates = [self.model_name]
+        for fb in (
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "mistralai/mistral-7b-instruct:free",
+            "google/gemini-2.0-flash-lite:free",
+            "qwen/qwen-2.5-72b-instruct",
+        ):
+            if fb not in candidates:
+                candidates.append(fb)
+
+        last_resp = None
+        for current_model in candidates:
+            body["model"] = current_model
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    resp = await client.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers=headers,
+                        json=body,
+                    )
+                last_resp = resp
+                if resp.status_code == 200:
+                    self.model_name = current_model
+                    break
+                logger.warning(
+                    "OpenRouter API error on model '%s' (%s): %s",
+                    current_model,
+                    resp.status_code,
+                    resp.text,
+                )
+                if resp.status_code not in (404, 429, 502, 503):
+                    break
+            except (httpx.HTTPError, TimeoutError) as exc:
+                logger.warning("OpenRouter network error on model '%s': %s", current_model, exc)
+                continue
+
+        if last_resp is None or last_resp.status_code >= 400:
+            err_code = last_resp.status_code if last_resp else 503
+            err_msg = last_resp.text if last_resp else "No response"
+            raise AppError(503, "PROVIDER_UNAVAILABLE", f"OpenRouter API error ({err_code}): {err_msg[:200]}")
+
+        data = last_resp.json()
         content = data["choices"][0]["message"]["content"]
         usage = data.get("usage", {})
         return LLMResponse(
@@ -1371,30 +1407,21 @@ class DemoClinicalLLMProvider(LLMProvider):
                     "Regarding Amlodipine: It is a calcium channel blocker that relaxes arterial blood vessel walls, helping lower blood pressure. "
                 )
 
-            disclaimer_suffix = {
-                "en": "AI can make mistakes. Please consult your doctor for clinical guidance.",
-                "hi": "AI गलतियाँ कर सकता है। क्लिनिकल मार्गदर्शन के लिए कृपया अपने डॉक्टर से परामर्श लें।",
-                "hi-Latn": "AI se galti ho sakti hai. Kripya clinical guidance ke liye apne doctor se consult karein.",
-            }.get(lang, "AI can make mistakes. Please consult your doctor for clinical guidance.")
-
             refusal_msg = {
                 "en": (
                     f"{med_focus}MedSarthi cannot change or recommend changing a prescribed dose. "
                     f"Based on your medical records: {_preserve_critical_clauses(source_text, structured_data)}. "
-                    "Always confirm any new medicine, dosage change, or symptom change directly with your doctor.\n\n"
-                    f"{disclaimer_suffix}"
+                    "Always confirm any new medicine, dosage change, or symptom change directly with your doctor."
                 ),
                 "hi": (
                     f"{med_focus}मेडसारथी डॉक्टर की लिखी खुराक बदल नहीं सकता। "
                     f"आपके मेडिकल रिकॉर्ड के अनुसार: {_apply_phrase_map(_preserve_critical_clauses(source_text, structured_data), _EN_TO_HI_DICT)}। "
-                    "किसी भी नई दवा या खुराक में बदलाव के लिए हमेशा अपने डॉक्टर से परामर्श लें।\n\n"
-                    f"{disclaimer_suffix}"
+                    "किसी भी नई दवा या खुराक में बदलाव के लिए हमेशा अपने डॉक्टर से परामर्श लें।"
                 ),
                 "hi-Latn": (
                     f"{med_focus}MedSarthi doctor ki likhi dose change nahi kar sakta. "
                     f"Aapke medical record ke mutabik: {_apply_phrase_map(_preserve_critical_clauses(source_text, structured_data), _EN_TO_HINGLISH_DICT)}. "
-                    "Kisi bhi nayi dawa ya dose badlav ke liye hamesha apne doctor se consult karein.\n\n"
-                    f"{disclaimer_suffix}"
+                    "Kisi bhi nayi dawa ya dose badlav ke liye hamesha apne doctor se consult karein."
                 ),
             }.get(lang, "")
             return {

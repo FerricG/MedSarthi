@@ -453,10 +453,10 @@ def build_chat_qa_prompt(
         "3. If intent is diagnosis_seeking, prescription_request, dose_change_request, or stop_or_substitute_request, "
         "never output only a canned refusal or generic 'Please consult your doctor for clinical guidance.' "
         "Instead, provide a helpful educational explanation of what is documented, relevant verified drug safety facts or physiological mechanisms, "
-        "and append the standard safety note at the bottom: 'AI can make mistakes. Please consult your doctor for clinical guidance.'\n"
+        "and clarify that the doctor makes all final treatment decisions.\n"
         "4. If user asks to 'explain simpler', simplify the prior answer while keeping every clinical fact intact.\n"
         "5. Return 4-category provenance JSON (`doctor_provided`, `ai_simplified`, `general_education`, `uncertain_or_missing`) "
-        "plus `suggested_followups` (list of strings). Always conclude the `ai_simplified.summary` with: 'AI can make mistakes. Please consult your doctor for clinical guidance.'"
+        "plus `suggested_followups` (list of strings)."
         f"{visual_instruction}"
     )
 
