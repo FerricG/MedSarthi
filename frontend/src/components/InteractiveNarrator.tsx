@@ -27,6 +27,188 @@ export interface InteractiveNarratorProps {
   voice?: string;
 }
 
+const NARRATOR_UI_COPY: Record<string, {
+  speaking: string;
+  hear: (name: string) => string;
+  pause: string;
+  replay: string;
+  slower: string;
+  normalSpeed: string;
+  mute: string;
+  unmute: string;
+  poseGreeting: string;
+  poseScanning: string;
+  poseExplaining: string;
+  poseListening: string;
+  poseCelebrating: string;
+}> = {
+  en: {
+    speaking: "Speaking...",
+    hear: (n) => `Hear ${n}`,
+    pause: "Pause Voice",
+    replay: "Replay",
+    slower: "Slower (0.85x)",
+    normalSpeed: "Normal Speed (1.0x)",
+    mute: "Mute",
+    unmute: "Unmute",
+    poseGreeting: "Welcoming you",
+    poseScanning: "Reading your prescription",
+    poseExplaining: "Explaining clearly",
+    poseListening: "Listening to you",
+    poseCelebrating: "Great job!",
+  },
+  hi: {
+    speaking: "बोल रहे हैं...",
+    hear: (n) => `${n} को सुनें`,
+    pause: "आवाज़ रोकें",
+    replay: "दोबारा सुनें",
+    slower: "धीमी आवाज़ (0.85x)",
+    normalSpeed: "सामान्य गति (1.0x)",
+    mute: "म्यूट करें",
+    unmute: "आवाज़ चालू करें",
+    poseGreeting: "स्वागत कर रहे हैं",
+    poseScanning: "पर्ची पढ़ रहे हैं",
+    poseExplaining: "सरल समझा रहे हैं",
+    poseListening: "आपकी बात सुन रहे हैं",
+    poseCelebrating: "बहुत अच्छा!",
+  },
+  "hi-Latn": {
+    speaking: "Bol rahe hain...",
+    hear: (n) => `${n} ko sunein`,
+    pause: "Aawaz rokein",
+    replay: "Dobara sunein",
+    slower: "Dheemi speed (0.85x)",
+    normalSpeed: "Normal speed (1.0x)",
+    mute: "Mute karein",
+    unmute: "Unmute karein",
+    poseGreeting: "Swagat kar rahe hain",
+    poseScanning: "Prescription padh rahe hain",
+    poseExplaining: "Samjha rahe hain",
+    poseListening: "Aapki baat sun rahe hain",
+    poseCelebrating: "Shabash!",
+  },
+  bn: {
+    speaking: "বলছেন...",
+    hear: (n) => `${n}-এর কথা শুনুন`,
+    pause: "শব্দ থামান",
+    replay: "পুনরায় শুনুন",
+    slower: "ধীর গতি (0.85x)",
+    normalSpeed: "স্বাভাবিক গতি (1.0x)",
+    mute: "নিঃশব্দ",
+    unmute: "সশব্দ",
+    poseGreeting: "স্বাগতম জানাচ্ছি",
+    poseScanning: "প্রেসক্রিপশন পড়ছি",
+    poseExplaining: "সহজে বোঝাচ্ছি",
+    poseListening: "আপনার কথা শুনছি",
+    poseCelebrating: "দারুণ!",
+  },
+  mr: {
+    speaking: "बोलत आहेत...",
+    hear: (n) => `${n} यांचे ऐका`,
+    pause: "आवाज थांबवा",
+    replay: "पुन्हा ऐका",
+    slower: "हळू गती (0.85x)",
+    normalSpeed: "सामान्य गती (1.0x)",
+    mute: "म्यूट",
+    unmute: "अनम्यूट",
+    poseGreeting: "स्वागत करत आहोत",
+    poseScanning: "प्रिस्क्रिप्शन वाचत आहोत",
+    poseExplaining: "समजावून सांगत आहोत",
+    poseListening: "तुमचे ऐकत आहोत",
+    poseCelebrating: "छान!",
+  },
+  ta: {
+    speaking: "பேசுகிறது...",
+    hear: (n) => `${n} குரலைக் கேட்கவும்`,
+    pause: "குரலை இடைநிறுத்து",
+    replay: "மீண்டும் கேட்கவும்",
+    slower: "மெதுவான வேகம் (0.85x)",
+    normalSpeed: "சாதாரண வேகம் (1.0x)",
+    mute: "ஒலியை முடக்கு",
+    unmute: "ஒலியை இயக்கு",
+    poseGreeting: "வரவேற்கிறோம்",
+    poseScanning: "மருந்துச் சீட்டைப் படிக்கிறோம்",
+    poseExplaining: "விளக்குகிறோம்",
+    poseListening: "உங்களைக் கேட்கிறோம்",
+    poseCelebrating: "நன்று!",
+  },
+  te: {
+    speaking: "మాట్లాడుతున్నారు...",
+    hear: (n) => `${n} వాయిస్ వినండి`,
+    pause: "వాయిస్ ఆపండి",
+    replay: "మళ్ళీ వినండి",
+    slower: "నెమ్మదిగా (0.85x)",
+    normalSpeed: "సాధారణ వేగం (1.0x)",
+    mute: "మ్యూట్",
+    unmute: "అన్‌మ్యూట్",
+    poseGreeting: "స్వాగతం",
+    poseScanning: "ప్రిస్క్రిప్షన్ చదువుతున్నాము",
+    poseExplaining: "వివరిస్తున్నాము",
+    poseListening: "మీరు చెప్పేది వింటున్నాము",
+    poseCelebrating: "చాలా బాగుంది!",
+  },
+  gu: {
+    speaking: "બોલે છે...",
+    hear: (n) => `${n} સાંભળો`,
+    pause: "અવાજ રોકો",
+    replay: "ફરી સાંભળો",
+    slower: "ધીમી ગતિ (0.85x)",
+    normalSpeed: "સામાન્ય ગતિ (1.0x)",
+    mute: "મ્યૂટ",
+    unmute: "અનમ્યૂટ",
+    poseGreeting: "સ્વાગત કરીએ છીએ",
+    poseScanning: "પ્રેસ્ક્રિપ્શન વાંચીએ છીએ",
+    poseExplaining: "સમજાવીએ છીએ",
+    poseListening: "તમને સાંભળીએ છીએ",
+    poseCelebrating: "સરસ!",
+  },
+  kn: {
+    speaking: "ಮಾತನಾಡುತ್ತಿದ್ದಾರೆ...",
+    hear: (n) => `${n} ಧ್ವನಿ ಕೇಳಿ`,
+    pause: "ಧ್ವನಿಯನ್ನು ನಿಲ್ಲಿಸಿ",
+    replay: "ಮತ್ತೆ ಕೇಳಿ",
+    slower: "ನಿಧಾನ ವೇಗ (0.85x)",
+    normalSpeed: "ಸಾಮಾನ್ಯ ವೇಗ (1.0x)",
+    mute: "ಮ್ಯೂಟ್",
+    unmute: "ಅನ್‌ಮ್ಯೂಟ್",
+    poseGreeting: "ಸ್ವಾಗತಿಸುತ್ತಿದ್ದೇವೆ",
+    poseScanning: "ಪ್ರಿಸ್ಕ್ರಿಪ್ಷನ್ ಓದುತ್ತಿದ್ದೇವೆ",
+    poseExplaining: "ವಿವರಿಸುತ್ತಿದ್ದೇವೆ",
+    poseListening: "ಕೇಳಿಸಿಕೊಳ್ಳುತ್ತಿದ್ದೇವೆ",
+    poseCelebrating: "ಉತ್ತಮ!",
+  },
+  ml: {
+    speaking: "സംസാരിക്കുന്നു...",
+    hear: (n) => `${n} പറയുന്നത് കേൾക്കൂ`,
+    pause: "ശബ്ദം നിർത്തൂ",
+    replay: "വീണ്ടും കേൾക്കൂ",
+    slower: "പതുക്കെ (0.85x)",
+    normalSpeed: "സാധാരണ വേഗത (1.0x)",
+    mute: "മ്യൂട്ട്",
+    unmute: "അൺമ്യൂട്ട്",
+    poseGreeting: "സ്വാഗതം",
+    poseScanning: "പ്രിസ്ക്രിപ്ഷൻ വായിക്കുന്നു",
+    poseExplaining: "വ്യക്തമാക്കുന്നു",
+    poseListening: "കേൾക്കുന്നു",
+    poseCelebrating: "നല്ലത്!",
+  },
+  pa: {
+    speaking: "ਬੋਲ ਰਹੇ ਹਨ...",
+    hear: (n) => `${n} ਨੂੰ ਸੁਣੋ`,
+    pause: "ਆਵਾਜ਼ ਰੋਕੋ",
+    replay: "ਦੁਬਾਰਾ ਸੁਣੋ",
+    slower: "ਹੌਲੀ ਗਤੀ (0.85x)",
+    normalSpeed: "ਆਮ ਗਤੀ (1.0x)",
+    mute: "ਮਿਊਟ",
+    unmute: "ਅਨਮਿਊਟ",
+    poseGreeting: "ਜੀ ਆਇਆਂ ਨੂੰ",
+    poseScanning: "ਪਰਚੀ ਪੜ੍ਹ ਰਹੇ ਹਾਂ",
+    poseExplaining: "ਸਮਝਾ ਰਹੇ ਹਾਂ",
+    poseListening: "ਤੁਹਾਡੀ ਗੱਲ ਸੁਣ ਰਹੇ ਹਾਂ",
+    poseCelebrating: "ਸ਼ਾਬਾਸ਼!",
+  },
+};
+
 export function InteractiveNarrator({
   message,
   pose = "explaining",
@@ -38,6 +220,7 @@ export function InteractiveNarrator({
   const { prefs, setAudioSpeed } = useAccessibility();
   const { locale } = useI18n();
   const activeLang = language || locale;
+  const copy = NARRATOR_UI_COPY[activeLang] || NARRATOR_UI_COPY.en;
 
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -82,14 +265,14 @@ export function InteractiveNarrator({
     return () => {
       stopSpeaking();
     };
-  }, [autoSpeak, message, muted, speakNow, stopSpeaking]);
+  }, [autoSpeak, message, muted, speakNow, stopSpeaking, activeLang]);
 
   const poseStatusLabel: Record<NarratorPose, string> = {
-    greeting: "Welcoming you",
-    scanning: "Reading your prescription",
-    explaining: "Explaining clearly",
-    listening: "Listening to you",
-    celebrating: "Great job!",
+    greeting: copy.poseGreeting,
+    scanning: copy.poseScanning,
+    explaining: copy.poseExplaining,
+    listening: copy.poseListening,
+    celebrating: copy.poseCelebrating,
   };
 
   return (
@@ -289,7 +472,7 @@ export function InteractiveNarrator({
               color: "var(--ms-primary)",
             }}
           >
-            {speakerName} • {isSpeaking ? "Speaking..." : poseStatusLabel[pose]}
+            {speakerName} • {isSpeaking ? copy.speaking : poseStatusLabel[pose]}
           </span>
         </button>
 
@@ -315,12 +498,12 @@ export function InteractiveNarrator({
               {isSpeaking ? (
                 <>
                   <Pause className="h-4 w-4" aria-hidden="true" />
-                  <span>Pause Voice</span>
+                  <span>{copy.pause}</span>
                 </>
               ) : (
                 <>
                   <Play className="h-4 w-4" aria-hidden="true" />
-                  <span>Hear {speakerName}</span>
+                  <span>{copy.hear(speakerName)}</span>
                 </>
               )}
             </button>
@@ -331,7 +514,7 @@ export function InteractiveNarrator({
               className="ms-btn-secondary tap-target inline-flex items-center gap-1.5 px-3 text-sm"
             >
               <RotateCcw className="h-4 w-4" aria-hidden="true" />
-              <span>Replay</span>
+              <span>{copy.replay}</span>
             </button>
 
             {/* Voice Dropdown */}
@@ -376,7 +559,7 @@ export function InteractiveNarrator({
               className="ms-btn-secondary tap-target inline-flex items-center gap-1.5 px-3 text-sm"
             >
               <Volume2 className="h-4 w-4" aria-hidden="true" />
-              <span>{prefs.audioSpeed <= 0.85 ? "Normal Speed (1.0x)" : "Slower (0.85x)"}</span>
+              <span>{prefs.audioSpeed <= 0.85 ? copy.normalSpeed : copy.slower}</span>
             </button>
 
             <button
@@ -389,7 +572,7 @@ export function InteractiveNarrator({
               className="ms-btn-secondary tap-target inline-flex items-center gap-1.5 px-3 text-sm"
             >
               {muted ? <VolumeX className="h-4 w-4" aria-hidden="true" /> : <Volume2 className="h-4 w-4" aria-hidden="true" />}
-              <span>{muted ? "Unmute" : "Mute"}</span>
+              <span>{muted ? copy.unmute : copy.mute}</span>
             </button>
           </div>
         </div>

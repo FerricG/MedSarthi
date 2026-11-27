@@ -23,6 +23,7 @@ import { VisualArtifactViewer } from "@/components/VisualArtifactViewer";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { useAccessibility } from "@/contexts/AccessibilityContext";
 import { SUPPORTED_LOCALES, useI18n, type SupportedLocale } from "@/i18n/I18nProvider";
+import { getClinicalAdvisory } from "@/lib/clinicalAdvisory";
 import {
   api,
   ApiError,
@@ -540,6 +541,11 @@ function TalkWorkspace() {
               </button>
             </div>
           </div>
+
+          {/* Clinical Advisory in really small font right below the text field */}
+          <p className="text-[11px] font-medium leading-tight select-none pt-0.5" style={{ color: "var(--ms-ink-muted)" }}>
+            {getClinicalAdvisory(locale)}
+          </p>
 
           {/* Research & Visual Intelligence Controls alongside the text field */}
           <div
